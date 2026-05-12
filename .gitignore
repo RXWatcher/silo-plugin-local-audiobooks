@@ -1,0 +1,7 @@
+*.log
+*.orig
+*.bak
+/cover-thumbs/
+/scan-tmp/
+node_modules/
+.env
