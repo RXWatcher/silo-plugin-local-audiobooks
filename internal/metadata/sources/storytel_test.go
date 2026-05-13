@@ -121,3 +121,24 @@ func TestStorytel_ASINReturnsNil(t *testing.T) {
 		t.Errorf("Get ASIN: expected nil candidate, got %+v", c)
 	}
 }
+
+func TestStorytel_RegionURL(t *testing.T) {
+	// Use a production-baseURL instance so storytelHostFor uses the switch.
+	s := NewStorytel("test")
+
+	cases := []struct {
+		region string
+		want   string
+	}{
+		{"uk", "https://www.storytel.co.uk"},
+		{"us", "https://www.storytel.com"},
+		{"", "https://www.storytel.com"},
+		{"de", "https://www.storytel.de"},
+	}
+	for _, tc := range cases {
+		got := s.storytelHostFor(tc.region)
+		if got != tc.want {
+			t.Errorf("storytelHostFor(%q) = %q, want %q", tc.region, got, tc.want)
+		}
+	}
+}

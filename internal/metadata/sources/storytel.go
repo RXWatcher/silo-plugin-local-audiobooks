@@ -172,19 +172,28 @@ func parseStorytelSearchPage(html []byte) []metadata.Candidate {
 var jsonLDRE = regexp.MustCompile(`(?i)<script[^>]*type="application/ld\+json"[^>]*>([\s\S]*?)</script>`)
 
 func parseJSONLD(html string) *metadata.Candidate {
-	matches := jsonLDRE.FindStringSubmatch(html)
-	if len(matches) < 2 {
-		return nil
-	}
+	allMatches := jsonLDRE.FindAllStringSubmatch(html, -1)
 	var doc map[string]json.RawMessage
-	if err := json.Unmarshal([]byte(matches[1]), &doc); err != nil {
-		return nil
+	found := false
+	for _, matches := range allMatches {
+		if len(matches) < 2 {
+			continue
+		}
+		var d map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(matches[1]), &d); err != nil {
+			continue
+		}
+		var typ string
+		if err := json.Unmarshal(d["@type"], &typ); err != nil {
+			continue
+		}
+		if typ == "Audiobook" || typ == "Book" {
+			doc = d
+			found = true
+			break
+		}
 	}
-	var typ string
-	if err := json.Unmarshal(doc["@type"], &typ); err != nil {
-		return nil
-	}
-	if typ != "Audiobook" && typ != "Book" {
+	if !found {
 		return nil
 	}
 
@@ -424,10 +433,12 @@ func storytelMapToCandidate(m map[string]interface{}) *metadata.Candidate {
 			bestWidth := -1
 			for _, sz := range sizes {
 				if s, ok := sz.(map[string]interface{}); ok {
-					w := int(s["width"].(float64))
-					if w > bestWidth {
-						bestWidth = w
-						bestURL = stringField(s, "url")
+					if wf, ok := s["width"].(float64); ok {
+						w := int(wf)
+						if w > bestWidth {
+							bestWidth = w
+							bestURL = stringField(s, "url")
+						}
 					}
 				}
 			}
