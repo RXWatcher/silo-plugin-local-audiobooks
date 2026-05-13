@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 	"strings"
 	"time"
@@ -40,6 +41,12 @@ type Cover struct {
 	Source      string // "embedded" | "sidecar"
 }
 
+// EnrichmentEnqueuer is the surface the scanner needs from metadata.Queue.
+// Defined as an interface so tests can fake it without a real DB.
+type EnrichmentEnqueuer interface {
+	Enqueue(ctx context.Context, audiobookID string) error
+}
+
 // ScanStore is the subset of the store interface the scanner needs.
 type ScanStore interface {
 	ListPaths(ctx context.Context, libraryPathID int64) (map[string]string, error)
@@ -53,6 +60,15 @@ type ScanStore interface {
 type WalkParams struct {
 	LibraryPathID int64
 	Root          string
+	// EnrichmentQueue is optional. When non-nil, Walk enqueues an enrichment
+	// job after every audiobook insert or content-changed update. Enrichment
+	// is best-effort: a queue error is logged but does not abort the scan.
+	//
+	// Inline enrichment (scan_inline_enrich config flag) is intentionally NOT
+	// handled here. Task 16 (main.go wiring) will call worker.Drain(ctx) right
+	// after Walk returns when that flag is set, draining all just-enqueued jobs
+	// synchronously without coupling the scanner to the worker.
+	EnrichmentQueue EnrichmentEnqueuer
 }
 
 // WalkResult holds per-run counts.
@@ -171,6 +187,12 @@ func Walk(ctx context.Context, store ScanStore, p WalkParams) (WalkResult, error
 				Source:      src,
 			}); err != nil {
 				return err
+			}
+		}
+
+		if p.EnrichmentQueue != nil {
+			if err := p.EnrichmentQueue.Enqueue(ctx, id); err != nil {
+				slog.WarnContext(ctx, "enqueue enrichment", "audiobook_id", id, "err", err)
 			}
 		}
 

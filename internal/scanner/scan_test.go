@@ -155,3 +155,94 @@ func TestScan_SoftDeletesDisappeared(t *testing.T) {
 		t.Errorf("fake.deletes = %v", fake.deletes)
 	}
 }
+
+// fakeEnqueuer records the audiobook IDs passed to Enqueue.
+type fakeEnqueuer struct{ ids []string }
+
+func (f *fakeEnqueuer) Enqueue(_ context.Context, id string) error {
+	f.ids = append(f.ids, id)
+	return nil
+}
+
+func TestScan_EnqueuesEnrichmentOnInsert(t *testing.T) {
+	dir := t.TempDir()
+	src := fixtureM4B(t, "minimal.m4b")
+	if err := copyFile(src, filepath.Join(dir, "a.m4b")); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+
+	enq := &fakeEnqueuer{}
+	fake := &scanFakeStore{}
+	res, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{
+		LibraryPathID:   1,
+		Root:            dir,
+		EnrichmentQueue: enq,
+	})
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+	if res.Added != 1 {
+		t.Fatalf("expected 1 added, got %d", res.Added)
+	}
+	if len(enq.ids) != 1 {
+		t.Errorf("expected 1 enrichment enqueue after insert, got %d", len(enq.ids))
+	}
+}
+
+func TestScan_EnqueuesEnrichmentOnUpdate(t *testing.T) {
+	dir := t.TempDir()
+	src := fixtureM4B(t, "minimal.m4b")
+	target := filepath.Join(dir, "a.m4b")
+	if err := copyFile(src, target); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+
+	fake := &scanFakeStore{}
+	// First walk — inserts the book.
+	if _, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{LibraryPathID: 1, Root: dir}); err != nil {
+		t.Fatalf("first walk: %v", err)
+	}
+
+	// Touch the file to trigger a content-changed update on the second walk.
+	future := time.Now().Add(1 * time.Hour)
+	if err := os.Chtimes(target, future, future); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	enq := &fakeEnqueuer{}
+	r2, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{
+		LibraryPathID:   1,
+		Root:            dir,
+		EnrichmentQueue: enq,
+	})
+	if err != nil {
+		t.Fatalf("second walk: %v", err)
+	}
+	if r2.Changed != 1 {
+		t.Fatalf("expected 1 changed, got %d", r2.Changed)
+	}
+	if len(enq.ids) != 1 {
+		t.Errorf("expected 1 enrichment enqueue after update, got %d", len(enq.ids))
+	}
+}
+
+func TestScan_NoEnqueueWhenQueueNil(t *testing.T) {
+	// Existing tests don't supply EnrichmentQueue. This test confirms nil is safe.
+	dir := t.TempDir()
+	src := fixtureM4B(t, "minimal.m4b")
+	if err := copyFile(src, filepath.Join(dir, "a.m4b")); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	fake := &scanFakeStore{}
+	res, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{
+		LibraryPathID: 1,
+		Root:          dir,
+		// EnrichmentQueue intentionally omitted (nil).
+	})
+	if err != nil {
+		t.Fatalf("Walk: %v", err)
+	}
+	if res.Added != 1 {
+		t.Fatalf("expected 1 added, got %d", res.Added)
+	}
+}
