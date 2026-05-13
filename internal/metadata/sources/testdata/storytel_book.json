@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<title>Project Hail Mary - Storytel</title>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Audiobook",
+  "name": "Project Hail Mary",
+  "description": "A lone astronaut must save humanity.",
+  "author": [{"@type": "Person", "name": "Andy Weir"}],
+  "readBy": [{"@type": "Person", "name": "Ray Porter"}],
+  "publisher": {"@type": "Organization", "name": "Audible Studios"},
+  "datePublished": "2021-05-04",
+  "duration": "PT16H11M",
+  "inLanguage": "en",
+  "isbn": "9780593135204",
+  "image": "https://cdn.storytel.com/images/project-hail-mary.jpg",
+  "url": "https://www.storytel.com/books/project-hail-mary-12345",
+  "workExample": {
+    "@type": "Audiobook",
+    "bookFormat": "AudiobookFormat"
+  }
+}
+</script>
+</head>
+<body>
+<h1>Project Hail Mary</h1>
+</body>
+</html>
