@@ -1,0 +1,15 @@
+{
+  "asin": "B08G9PRS1K",
+  "title": "Project Hail Mary",
+  "description": "A lone astronaut must save humanity.",
+  "image": "https://m.media-amazon.com/images/I/example.jpg",
+  "publishedDate": "2021-05-04",
+  "publisherName": "Audible Studios",
+  "language": "english",
+  "formatType": "unabridged",
+  "runtimeLengthMin": 970,
+  "authors": [{"name": "Andy Weir"}],
+  "narrators": [{"name": "Ray Porter"}],
+  "genres": [{"name": "Science Fiction"}],
+  "seriesPrimary": {"name": "Hail Mary", "position": "1"}
+}

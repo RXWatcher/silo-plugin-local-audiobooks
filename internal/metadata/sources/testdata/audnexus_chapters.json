@@ -1,0 +1,6 @@
+{
+  "chapters": [
+    {"title": "Chapter 1", "startOffsetMs": 0, "lengthMs": 300000},
+    {"title": "Chapter 2", "startOffsetMs": 300000, "lengthMs": 250000}
+  ]
+}

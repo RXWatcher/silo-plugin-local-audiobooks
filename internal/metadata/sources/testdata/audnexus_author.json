@@ -1,0 +1,10 @@
+[
+  {
+    "asin": "B00G0WYW92",
+    "name": "Andy Weir",
+    "books": [
+      {"asin": "B08G9PRS1K", "title": "Project Hail Mary"},
+      {"asin": "B00FAXJD8O", "title": "The Martian"}
+    ]
+  }
+]
