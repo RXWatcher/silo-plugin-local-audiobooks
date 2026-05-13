@@ -1,0 +1,59 @@
+// Package auth verifies presigned stream-URL JWTs minted by the audiobooks
+// portal. The same shared HMAC secret signs and verifies; portal-side
+// minting lives in continuum-plugin-audiobooks.
+package auth
+
+import (
+	"errors"
+	"fmt"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+const expectedAudience = "audiobooksdb"
+
+// StreamClaims is the verified subset of token claims callers need.
+type StreamClaims struct {
+	UserID  string
+	BookID  string
+	FileIdx int
+}
+
+// VerifyStreamToken parses + verifies token. Returns nil error iff:
+//   - signature is valid HS256 against secret
+//   - aud == "audiobooksdb"
+//   - exp not exceeded
+//   - book_id in token == expectedBookID
+//   - file_idx in token == expectedFileIdx
+func VerifyStreamToken(secret []byte, token string, expectedBookID string, expectedFileIdx int) (*StreamClaims, error) {
+	if len(secret) == 0 {
+		return nil, errors.New("empty signing secret")
+	}
+	parsed, err := jwt.Parse(token, func(t *jwt.Token) (any, error) {
+		// Restrict to HS256; reject "none" and asymmetric algs.
+		if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+		return secret, nil
+	}, jwt.WithAudience(expectedAudience), jwt.WithExpirationRequired())
+	if err != nil {
+		return nil, fmt.Errorf("verify: %w", err)
+	}
+	if !parsed.Valid {
+		return nil, errors.New("token invalid")
+	}
+	claims, ok := parsed.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("claims not MapClaims")
+	}
+	bookID, _ := claims["book_id"].(string)
+	if bookID != expectedBookID {
+		return nil, fmt.Errorf("book_id mismatch (token=%q want=%q)", bookID, expectedBookID)
+	}
+	fidx, ok := claims["file_idx"].(float64)
+	if !ok || int(fidx) != expectedFileIdx {
+		return nil, fmt.Errorf("file_idx mismatch")
+	}
+	sub, _ := claims["sub"].(string)
+	return &StreamClaims{UserID: sub, BookID: bookID, FileIdx: expectedFileIdx}, nil
+}

@@ -8,6 +8,7 @@ require (
 	github.com/ContinuumApp/continuum-plugin-sdk v0.3.7
 	github.com/abema/go-mp4 v1.5.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/jackc/pgx/v5 v5.9.2
 	golang.org/x/crypto v0.46.0
 	google.golang.org/protobuf v1.36.11
