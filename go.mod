@@ -7,6 +7,7 @@ replace github.com/ContinuumApp/continuum-plugin-sdk => /opt/continuum_plugins/c
 require (
 	github.com/ContinuumApp/continuum-plugin-sdk v0.3.7
 	github.com/jackc/pgx/v5 v5.9.2
+	golang.org/x/crypto v0.46.0
 	google.golang.org/protobuf v1.36.11
 )
 
