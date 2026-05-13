@@ -2,6 +2,7 @@ package metadataprovider
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
@@ -192,6 +193,60 @@ func TestServer_Search_ProviderIDs_OriginalCandidate(t *testing.T) {
 	}
 	if cap.capturedOriginal.ASIN != "B0TESTVALUE" {
 		t.Errorf("expected ASIN %q, got %q", "B0TESTVALUE", cap.capturedOriginal.ASIN)
+	}
+}
+
+// TestCandidateToMetadataItem_ChaptersAndExtras verifies that a Candidate with
+// chapters, ASIN, and source is mapped to a MetadataItem with extras.chapters_json,
+// extras.source, and extras.asin populated correctly.
+func TestCandidateToMetadataItem_ChaptersAndExtras(t *testing.T) {
+	cand := metadata.Candidate{
+		Source:     "audnexus",
+		ExternalID: "B0TEST",
+		Title:      "Test Book",
+		ASIN:       "B0TEST",
+		Chapters: []metadata.Chapter{
+			{Title: "Intro", StartMS: 0, EndMS: 5000},
+			{Title: "Chapter 1", StartMS: 5000, EndMS: 60000},
+		},
+	}
+	item, err := candidateToMetadataItem(cand, "audnexus:B0TEST")
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := item.GetMetadata().AsMap()
+
+	// extras.chapters_json must be present and valid JSON matching the chapters.
+	chapRaw, ok := meta["chapters_json"].(string)
+	if !ok || chapRaw == "" {
+		t.Fatalf("expected chapters_json string in extras, got %v", meta["chapters_json"])
+	}
+	var chapters []metadata.Chapter
+	if err := json.Unmarshal([]byte(chapRaw), &chapters); err != nil {
+		t.Fatalf("chapters_json not valid JSON: %v", err)
+	}
+	if len(chapters) != 2 || chapters[0].Title != "Intro" || chapters[1].Title != "Chapter 1" {
+		t.Errorf("unexpected chapters: %+v", chapters)
+	}
+
+	// extras.source must equal "audnexus".
+	if meta["source"] != "audnexus" {
+		t.Errorf("extras.source = %v, want audnexus", meta["source"])
+	}
+
+	// extras.asin must equal "B0TEST".
+	if meta["asin"] != "B0TEST" {
+		t.Errorf("extras.asin = %v, want B0TEST", meta["asin"])
+	}
+}
+
+// TestStripHTML verifies that HTML tags are removed and entities are decoded.
+func TestStripHTML(t *testing.T) {
+	input := "<p>Hello <b>world</b>&amp;more</p>"
+	want := "Hello world&more"
+	got := stripHTML(input)
+	if got != want {
+		t.Errorf("stripHTML(%q) = %q, want %q", input, got, want)
 	}
 }
 

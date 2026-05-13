@@ -16,11 +16,44 @@ runtime; M4B + MP3 parsing is pure Go.
 - Optionally serves byte-range streams directly to mobile clients via a
   presigned-URL standalone listener (see `docs/operations.md`).
 
+## Metadata provider (v0.2.0+)
+
+The plugin also advertises the `metadata_provider.v1` capability and acts as
+a metadata aggregator for audiobooks. Seven sources are bundled:
+
+| Source ID         | Service           |
+|-------------------|-------------------|
+| `audnexus`        | Audnexus          |
+| `audimeta`        | AudiMeta          |
+| `itunes`          | iTunes            |
+| `storytel`        | Storytel          |
+| `bookbeat`        | BookBeat          |
+| `audioteka`       | Audioteka         |
+| `audiobookcovers` | Audiobookcovers   |
+
+**Trigger model**: gRPC `Search` queries all enabled sources in parallel and
+aggregates results by confidence score. Scan-time enrichment goes through a
+Postgres-backed queue drained every minute by the `metadata_enrichment_worker`
+scheduled task, using a single configurable source per audiobook (default:
+`audnexus`).
+
+**New config keys** (all optional):
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `metadata_sources_enabled` | all sources | JSON array of source IDs to query |
+| `metadata_default_region` | `"us"` | ISO country code for source requests |
+| `metadata_cache_ttl_days` | `30` | Days a positive cache entry is retained |
+| `metadata_rate_limit_rps` | `5` | Per-source request rate limit |
+| `scan_inline_enrich` | `false` | Run enrichment inline after scan completes |
+| `metadata_scan_source` | `"audnexus"` | Source used by the enrichment worker |
+
+**Admin endpoint**: `POST /admin/metadata/backfill` enqueues all unenriched
+audiobooks for re-enrichment.
+
 ## What it does NOT do
 
 - It does not modify your files. No tag rewrites, no moves, no renames.
-- It does not fetch metadata from external services. That's the future
-  metadata-agent system's job.
 - It does not accept book requests. A local backend cannot acquire new
   content — the audiobooks portal handles request routing through other
   backends.

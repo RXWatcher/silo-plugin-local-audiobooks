@@ -4,7 +4,10 @@ package metadataprovider
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"html"
+	"regexp"
 	"sync/atomic"
 
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
@@ -15,6 +18,13 @@ import (
 	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
 	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata/sources"
 )
+
+var reHTMLTag = regexp.MustCompile(`<[^>]+>`)
+
+// stripHTML removes HTML tags and decodes HTML entities from s.
+func stripHTML(s string) string {
+	return html.UnescapeString(reHTMLTag.ReplaceAllString(s, ""))
+}
 
 // EnabledFn returns the per-source enabled map at request time so config
 // changes take effect without a restart.
@@ -277,17 +287,39 @@ func candidateToMetadataItem(c metadata.Candidate, providerID string) (*pluginv1
 
 	// Extra source-specific fields stored in the metadata struct.
 	extra := map[string]any{}
-	if c.Series != "" {
-		extra["series"] = c.Series
+	if c.Source != "" {
+		extra["source"] = c.Source
 	}
-	if c.SeriesPos != "" {
-		extra["series_pos"] = c.SeriesPos
+	if c.Language != "" {
+		extra["language"] = c.Language
+	}
+	if c.ASIN != "" {
+		extra["asin"] = c.ASIN
+	}
+	if c.ISBN != "" {
+		extra["isbn"] = c.ISBN
+	}
+	if c.Region != "" {
+		extra["region"] = c.Region
 	}
 	if c.Publisher != "" {
 		extra["publisher"] = c.Publisher
 	}
 	if c.RuntimeMin > 0 {
-		extra["runtime_min"] = float64(c.RuntimeMin)
+		extra["runtime_minutes"] = float64(c.RuntimeMin)
+	}
+	if c.Series != "" {
+		extra["series_name"] = c.Series
+	}
+	if c.SeriesPos != "" {
+		extra["series_position"] = c.SeriesPos
+	}
+	if len(c.Chapters) > 0 {
+		chapJSON, jerr := json.Marshal(c.Chapters)
+		if jerr != nil {
+			return nil, jerr
+		}
+		extra["chapters_json"] = string(chapJSON)
 	}
 	var metaStruct *structpb.Struct
 	if len(extra) > 0 {
@@ -311,7 +343,7 @@ func candidateToMetadataItem(c metadata.Candidate, providerID string) (*pluginv1
 		ItemType:      "audiobook",
 		Title:         c.Title,
 		Year:          yearAsInt32(c.PublishedAt),
-		Overview:      c.Description,
+		Overview:      stripHTML(c.Description),
 		Genres:        append([]string(nil), c.Genres...),
 		ProviderIds:   pids,
 		PosterPath:    c.CoverURL,

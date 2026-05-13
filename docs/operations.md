@@ -77,7 +77,45 @@ Manual: generate a new secret in the audiobooks portal admin UI, paste
 into both plugin configs, restart both plugins. In-flight stream tokens
 expire within 5 minutes regardless.
 
-## 5. Backups
+## 5. Metadata enrichment
+
+The plugin enriches audiobooks with external metadata via a Postgres-backed
+queue. The `metadata_enrichment_worker` scheduled task drains the queue once
+per minute (cron `* * * * *`).
+
+### Enrichment sources
+
+Seven sources are bundled. Control which are active with `metadata_sources_enabled`
+(defaults to all). The enrichment worker uses the single source named in
+`metadata_scan_source` (default `audnexus`); gRPC `Search` queries all enabled
+sources in parallel.
+
+### Triggering backfill
+
+To re-enrich all audiobooks (e.g. after adding a new source or changing region):
+
+```
+POST /admin/metadata/backfill
+```
+
+This enqueues every unenriched audiobook. The worker drains it at its next
+scheduled minute.
+
+### Rate limiting and caching
+
+- `metadata_rate_limit_rps` (default `5`) limits outbound requests per source.
+- `metadata_cache_ttl_days` (default `30`) controls how long a positive result
+  is cached before re-fetching.
+- `metadata_default_region` (default `"us"`) sets the ISO country code for
+  region-aware sources.
+
+### Inline enrichment
+
+Set `scan_inline_enrich = true` to run enrichment synchronously after each
+library scan finishes instead of queuing for the next worker run. Suitable for
+small libraries; avoid on large ones.
+
+## 6. Backups
 
 The plugin's schema contains the catalog index + cover bytes + scan
 history. The on-disk M4B/MP3 files are authoritative content — losing
