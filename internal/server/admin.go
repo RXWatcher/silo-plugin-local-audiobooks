@@ -61,10 +61,17 @@ func (s *Server) handleAdminDeletePath(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// handleAdminScan: real trigger is wired in T19 once Deps gains a Scan
-// callback. For now this returns 503.
-func (s *Server) handleAdminScan(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "scan not yet wired (T19)", http.StatusServiceUnavailable)
+func (s *Server) handleAdminScan(w http.ResponseWriter, r *http.Request) {
+	if s.deps.Scan == nil {
+		http.Error(w, "scan not configured", http.StatusServiceUnavailable)
+		return
+	}
+	eventID, err := s.deps.Scan(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusAccepted, map[string]any{"scan_event_id": eventID})
 }
 
 func (s *Server) handleAdminScanStatus(w http.ResponseWriter, r *http.Request) {

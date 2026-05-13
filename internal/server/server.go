@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,11 @@ type Deps struct {
 	Store        *store.Store
 	StandaloneOn bool   // true when serving on the standalone listener
 	StreamSecret []byte // shared HMAC for stream-token verification
+
+	// Scan triggers a library scan. Returns the scan_event id. Multiple
+	// concurrent calls de-duplicate to the same in-flight id. Nil-safe (the
+	// admin handler returns 503 when Scan is nil).
+	Scan func(context.Context) (int64, error)
 }
 
 // Server wraps the chi handler.
