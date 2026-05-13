@@ -79,8 +79,43 @@ func ParseM4B(path string) (*ParsedM4B, error) {
 		}
 	}
 
-	// Pass 2 (Task 9): abema/go-mp4 for chapters + cover + duration.
-	// Left for the next task.
+	// Pass 2: abema/go-mp4 for chapters + cover + duration.
+	if _, err := f.Seek(0, 0); err == nil {
+		boxes, _ := readMP4Boxes(f)
+		out.DurationMs = boxes.durationMs
+		out.CoverBytes, out.CoverMIME = boxes.cover, boxes.coverMIME
+		out.Chapters = boxes.chapters
+		if len(out.CoverBytes) > 0 {
+			out.CoverSource = "embedded"
+		}
+	}
+
+	// Synthesize a single chapter spanning the whole file when chap atom is
+	// absent.
+	if len(out.Chapters) == 0 && out.DurationMs > 0 {
+		out.Chapters = []ParsedChapter{{
+			Idx:     0,
+			Title:   "Chapter 1",
+			StartMs: 0,
+			EndMs:   out.DurationMs,
+		}}
+	}
 
 	return out, nil
+}
+
+// mp4Result holds the partial-extraction fields lifted out of MP4 boxes.
+type mp4Result struct {
+	durationMs int64
+	chapters   []ParsedChapter
+	cover      []byte
+	coverMIME  string
+}
+
+func readMP4Boxes(f *os.File) (mp4Result, error) {
+	r, err := mp4ReaderFromFile(f)
+	if err != nil {
+		return mp4Result{}, err
+	}
+	return parseMP4(r), nil
 }

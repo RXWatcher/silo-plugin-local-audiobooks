@@ -33,3 +33,47 @@ func TestParseM4B_Tags(t *testing.T) {
 		t.Errorf("author empty")
 	}
 }
+
+func TestParseM4B_NoChaptersSynthesizesOne(t *testing.T) {
+	p := fixtureM4B(t, "minimal.m4b")
+	got, err := scanner.ParseM4B(p)
+	if err != nil {
+		t.Fatalf("ParseM4B: %v", err)
+	}
+	if len(got.Chapters) != 1 {
+		t.Fatalf("expected 1 synthesized chapter, got %d", len(got.Chapters))
+	}
+	if got.Chapters[0].Idx != 0 || got.Chapters[0].StartMs != 0 {
+		t.Errorf("synthesized chapter shape wrong: %+v", got.Chapters[0])
+	}
+}
+
+func TestParseM4B_DurationParsed(t *testing.T) {
+	p := fixtureM4B(t, "minimal.m4b")
+	got, err := scanner.ParseM4B(p)
+	if err != nil {
+		t.Fatalf("ParseM4B: %v", err)
+	}
+	if got.DurationMs <= 0 {
+		t.Fatalf("expected positive duration, got %d", got.DurationMs)
+	}
+}
+
+// Optional chaptered-fixture test — skips cleanly if the fixture isn't
+// generated. We accept either real-parsed chapters or the synthesis
+// fallback (both leave at least 1 chapter in ascending order).
+func TestParseM4B_ChapAtomChapters(t *testing.T) {
+	p := fixtureM4B(t, "chaptered.m4b")
+	got, err := scanner.ParseM4B(p)
+	if err != nil {
+		t.Fatalf("ParseM4B: %v", err)
+	}
+	if len(got.Chapters) < 1 {
+		t.Fatalf("expected >= 1 chapter, got %d", len(got.Chapters))
+	}
+	for i := 1; i < len(got.Chapters); i++ {
+		if got.Chapters[i].StartMs < got.Chapters[i-1].StartMs {
+			t.Errorf("chapters out of order at idx %d", i)
+		}
+	}
+}

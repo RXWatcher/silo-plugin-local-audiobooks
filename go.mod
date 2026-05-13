@@ -6,6 +6,7 @@ replace github.com/ContinuumApp/continuum-plugin-sdk => /opt/continuum_plugins/c
 
 require (
 	github.com/ContinuumApp/continuum-plugin-sdk v0.3.7
+	github.com/abema/go-mp4 v1.5.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
 	github.com/jackc/pgx/v5 v5.9.2
 	golang.org/x/crypto v0.46.0
@@ -15,6 +16,7 @@ require (
 require (
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/go-hclog v1.6.3 // indirect
 	github.com/hashicorp/go-plugin v1.7.0 // indirect
 	github.com/hashicorp/yamux v0.1.2 // indirect
