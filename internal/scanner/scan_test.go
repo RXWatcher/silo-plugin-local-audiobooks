@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/scanner"
 )
@@ -93,5 +94,64 @@ func TestScan_InitialWalkInsertsBothFormats(t *testing.T) {
 	}
 	if len(fake.books) != 3 {
 		t.Errorf("books in fake = %d, want 3", len(fake.books))
+	}
+}
+
+func TestScan_DetectsChangedFiles(t *testing.T) {
+	dir := t.TempDir()
+	src := fixtureM4B(t, "minimal.m4b")
+	target := filepath.Join(dir, "a.m4b")
+	if err := copyFile(src, target); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	fake := &scanFakeStore{}
+
+	r1, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{LibraryPathID: 1, Root: dir})
+	if err != nil {
+		t.Fatalf("first walk: %v", err)
+	}
+	if r1.Added != 1 {
+		t.Fatalf("first walk added = %d, want 1", r1.Added)
+	}
+
+	// Touch the file to bump mtime.
+	future := time.Now().Add(1 * time.Hour)
+	if err := os.Chtimes(target, future, future); err != nil {
+		t.Fatalf("chtimes: %v", err)
+	}
+
+	r2, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{LibraryPathID: 1, Root: dir})
+	if err != nil {
+		t.Fatalf("second walk: %v", err)
+	}
+	if r2.Changed != 1 || r2.Added != 0 || r2.Deleted != 1 {
+		t.Errorf("counts after change = (a=%d c=%d d=%d), want (0,1,1)", r2.Added, r2.Changed, r2.Deleted)
+	}
+}
+
+func TestScan_SoftDeletesDisappeared(t *testing.T) {
+	dir := t.TempDir()
+	src := fixtureM4B(t, "minimal.m4b")
+	target := filepath.Join(dir, "a.m4b")
+	if err := copyFile(src, target); err != nil {
+		t.Fatalf("copy: %v", err)
+	}
+	fake := &scanFakeStore{}
+
+	if _, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{LibraryPathID: 1, Root: dir}); err != nil {
+		t.Fatalf("first walk: %v", err)
+	}
+	if err := os.Remove(target); err != nil {
+		t.Fatalf("remove: %v", err)
+	}
+	r2, err := scanner.Walk(context.Background(), fake, scanner.WalkParams{LibraryPathID: 1, Root: dir})
+	if err != nil {
+		t.Fatalf("second walk: %v", err)
+	}
+	if r2.Deleted != 1 {
+		t.Fatalf("expected 1 soft-delete, got %d", r2.Deleted)
+	}
+	if len(fake.deletes) != 1 {
+		t.Errorf("fake.deletes = %v", fake.deletes)
 	}
 }
