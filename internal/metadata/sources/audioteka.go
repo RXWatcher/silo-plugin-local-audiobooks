@@ -26,6 +26,16 @@ var audiotekaRegionDomains = map[string]string{
 	"lt": "https://audioteka.com/lt",
 }
 
+// audiotekaSearchPaths maps each region to its localised search path segment.
+// The query parameter name is "query" across all regions (per booklore-ng TS reference).
+var audiotekaSearchPaths = map[string]string{
+	"pl": "szukaj",
+	"cz": "hledat",
+	"de": "suchen",
+	"es": "buscar",
+	"lt": "ieškoti",
+}
+
 // audiotekaInitialStateRE matches the window.__INITIAL_STATE__ or
 // window.__PRELOADED_STATE__ JSON blob embedded in Audioteka HTML pages.
 var audiotekaInitialStateRE = regexp.MustCompile(
@@ -112,7 +122,11 @@ func (a *Audioteka) Search(ctx context.Context, query, region string) ([]metadat
 	}
 
 	host := a.audiotekaHostFor(region)
-	searchURL := fmt.Sprintf("%s/szukaj?query=%s", host, url.QueryEscape(q))
+	searchPath := audiotekaSearchPaths[region]
+	if searchPath == "" {
+		searchPath = "szukaj"
+	}
+	searchURL := fmt.Sprintf("%s/%s?query=%s", host, searchPath, url.QueryEscape(q))
 
 	body, err := a.http.GetJSON(ctx, searchURL)
 	if errors.Is(err, ErrNotFound) {

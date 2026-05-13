@@ -120,4 +120,12 @@ func TestAudioteka_ASINReturnsNil(t *testing.T) {
 	if c != nil {
 		t.Errorf("Get ASIN: expected nil candidate, got %+v", c)
 	}
+
+	cs, err := a.Search(context.Background(), "B08G9PRS1K", "pl")
+	if err != nil {
+		t.Errorf("Search ASIN: unexpected error: %v", err)
+	}
+	if cs != nil {
+		t.Errorf("Search ASIN: expected nil, got %v", cs)
+	}
 }
