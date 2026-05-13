@@ -3,6 +3,7 @@ package scanner
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/dhowden/tag"
 )
@@ -101,6 +102,16 @@ func ParseM4B(path string) (*ParsedM4B, error) {
 		}}
 	}
 
+	// Sidecar cover fallback: if no embedded cover, look for cover.jpg /
+	// cover.png / folder.jpg next to the file. Generic helper — also
+	// reused by the MP3 parser path.
+	if len(out.CoverBytes) == 0 {
+		if b, mime := readSidecarCover(path); len(b) > 0 {
+			out.CoverBytes, out.CoverMIME = b, mime
+			out.CoverSource = "sidecar"
+		}
+	}
+
 	return out, nil
 }
 
@@ -118,4 +129,23 @@ func readMP4Boxes(f *os.File) (mp4Result, error) {
 		return mp4Result{}, err
 	}
 	return parseMP4(r), nil
+}
+
+// readSidecarCover looks for cover.jpg / cover.png / folder.jpg in the
+// directory containing audioPath. Returns the bytes + MIME of the first
+// hit. Caller distinguishes embedded vs sidecar via CoverSource.
+func readSidecarCover(audioPath string) ([]byte, string) {
+	dir := filepath.Dir(audioPath)
+	candidates := []struct{ name, mime string }{
+		{"cover.jpg", "image/jpeg"},
+		{"cover.png", "image/png"},
+		{"folder.jpg", "image/jpeg"},
+	}
+	for _, c := range candidates {
+		p := filepath.Join(dir, c.name)
+		if b, err := os.ReadFile(p); err == nil {
+			return b, c.mime
+		}
+	}
+	return nil, ""
 }
