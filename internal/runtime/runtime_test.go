@@ -7,7 +7,7 @@ import (
 	pluginv1 "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginproto/continuum/plugin/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	pluginrt "github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/runtime"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/runtime"
 )
 
 func newConfigureRequest(t *testing.T, kv map[string]any) *pluginv1.ConfigureRequest {

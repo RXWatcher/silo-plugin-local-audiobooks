@@ -1,4 +1,4 @@
-module github.com/ContinuumApp/continuum-plugin-audiobooksdb
+module github.com/ContinuumApp/continuum-plugin-local-audiobooks
 
 go 1.26.0
 

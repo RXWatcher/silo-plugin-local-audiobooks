@@ -1,15 +1,21 @@
-.PHONY: all build test vet manifest-checksum
+BINARY := continuum-plugin-local-audiobooks
+GO ?= go
+
+.PHONY: all build test vet manifest-checksum clean
 
 all: build
 
 build:
-	go build ./...
+	$(GO) build -o $(BINARY) ./cmd/continuum-plugin-local-audiobooks
 
 test:
-	go test ./...
+	$(GO) test ./...
 
 vet:
-	go vet ./...
+	$(GO) vet ./...
 
 manifest-checksum:
-	@sha256sum cmd/continuum-plugin-audiobooksdb/manifest.json | cut -d' ' -f1
+	@sha256sum cmd/continuum-plugin-local-audiobooks/manifest.json | cut -d' ' -f1
+
+clean:
+	rm -f $(BINARY)

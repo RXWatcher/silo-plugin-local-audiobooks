@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata/sources"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata/sources"
 )
 
 var reHTMLTag = regexp.MustCompile(`<[^>]+>`)
@@ -339,18 +339,18 @@ func candidateToMetadataItem(c metadata.Candidate, providerID string) (*pluginv1
 	}
 
 	return &pluginv1.MetadataItem{
-		ProviderId:    providerID,
-		ItemType:      "audiobook",
-		Title:         c.Title,
-		Year:          yearAsInt32(c.PublishedAt),
-		Overview:      stripHTML(c.Description),
-		Genres:        append([]string(nil), c.Genres...),
-		ProviderIds:   pids,
-		PosterPath:    c.CoverURL,
-		ReleaseDate:   c.PublishedAt,
-		People:        people,
-		Metadata:      metaStruct,
-		Runtime:       int32(c.RuntimeMin),
+		ProviderId:  providerID,
+		ItemType:    "audiobook",
+		Title:       c.Title,
+		Year:        yearAsInt32(c.PublishedAt),
+		Overview:    stripHTML(c.Description),
+		Genres:      append([]string(nil), c.Genres...),
+		ProviderIds: pids,
+		PosterPath:  c.CoverURL,
+		ReleaseDate: c.PublishedAt,
+		People:      people,
+		Metadata:    metaStruct,
+		Runtime:     int32(c.RuntimeMin),
 	}, nil
 }
 

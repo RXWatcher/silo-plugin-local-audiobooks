@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata"
 )
 
 const itunesID = "itunes"

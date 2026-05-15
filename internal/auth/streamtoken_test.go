@@ -6,7 +6,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/auth"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/auth"
 )
 
 func mint(t *testing.T, secret []byte, claims jwt.MapClaims) string {
@@ -23,7 +23,7 @@ func TestVerifyStreamToken_HappyPath(t *testing.T) {
 	secret := []byte("test-secret-32-bytes-please-aaaaa")
 	tok := mint(t, secret, jwt.MapClaims{
 		"sub":      "u-1",
-		"aud":      "audiobooksdb",
+		"aud":      "local_audiobooks",
 		"book_id":  "abc123",
 		"file_idx": float64(0),
 		"exp":      time.Now().Add(5 * time.Minute).Unix(),
@@ -40,7 +40,7 @@ func TestVerifyStreamToken_HappyPath(t *testing.T) {
 func TestVerifyStreamToken_RejectsExpired(t *testing.T) {
 	secret := []byte("test-secret-32-bytes-please-aaaaa")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "audiobooksdb", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(-1 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {
@@ -62,7 +62,7 @@ func TestVerifyStreamToken_RejectsWrongAudience(t *testing.T) {
 func TestVerifyStreamToken_RejectsBookIDMismatch(t *testing.T) {
 	secret := []byte("test-secret-32-bytes-please-aaaaa")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "audiobooksdb", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "different", 0); err == nil {
@@ -73,7 +73,7 @@ func TestVerifyStreamToken_RejectsBookIDMismatch(t *testing.T) {
 func TestVerifyStreamToken_RejectsBadSignature(t *testing.T) {
 	secret := []byte("test-secret-32-bytes-please-aaaaa")
 	tok := mint(t, []byte("different-secret-32-bytes-aaaaaaa"), jwt.MapClaims{
-		"sub": "u-1", "aud": "audiobooksdb", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {

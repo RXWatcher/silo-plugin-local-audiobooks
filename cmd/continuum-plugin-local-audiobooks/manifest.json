@@ -1,11 +1,12 @@
 {
-  "plugin_id": "continuum.audiobooksdb",
+  "plugin_id": "continuum.local-audiobooks",
   "version": "0.2.0",
   "checksum": "__CHECKSUM__",
   "continuum_api_version": "v1",
   "capabilities": [
-    {"type": "audiobook_backend.v1", "id": "audiobooksdb",
-     "display_name": "Local M4B audiobook backend"},
+    {"type": "audiobook_backend.v1", "id": "local_audiobooks",
+     "display_name": "Local Audiobooks Library",
+     "description": "Scans local audiobook libraries and exposes them to the Audiobooks portal."},
     {"type": "http_routes.v1", "id": "api",
      "display_name": "Catalog + admin HTTP routes"},
     {"type": "scheduled_task.v1", "id": "library_scan",
@@ -13,8 +14,8 @@
      "cron": "0 */6 * * *"},
     {
       "type": "metadata_provider.v1",
-      "id": "audiobooksdb_meta",
-      "display_name": "Audiobook metadata aggregator",
+      "id": "local_audiobooks_meta",
+      "display_name": "Local Audiobooks metadata aggregator",
       "description": "Searches Audnexus, AudiMeta, iTunes, Storytel, BookBeat, Audioteka, and Audiobookcovers.",
       "metadata": {
         "default_priority": {"audiobook": 1}
@@ -35,7 +36,7 @@
     {
       "key": "database_url",
       "title": "Postgres connection string",
-      "description": "DSN for the dedicated audiobooksdb schema.",
+      "description": "DSN for the dedicated local_audiobooks schema.",
       "json_schema": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"required\":[\"value\"]}",
       "required": true,
       "admin_form": {"fields": [{"key": "value", "label": "Connection URL", "control": "ADMIN_FORM_CONTROL_PASSWORD", "required": true, "secret": true}]}

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata"
 )
 
 const audimetaID = "audimeta"
@@ -122,22 +122,22 @@ func searchResultsToCandidate(results []audimetaSearchResult, region string) []m
 
 // audimetaBook is the shape of GET /books/<asin>.
 type audimetaBook struct {
-	ASIN             string            `json:"asin"`
-	Title            string            `json:"title"`
-	Subtitle         string            `json:"subtitle"`
-	Description      string            `json:"description"`
-	Summary          string            `json:"summary"`
-	Image            string            `json:"image"`
-	Language         string            `json:"language"`
-	Publisher        string            `json:"publisher"`
-	ReleaseDate      string            `json:"releaseDate"`
-	RuntimeLengthMin int               `json:"runtimeLengthMin"`
-	Authors          []audimetaName    `json:"authors"`
-	Narrators        []audimetaName    `json:"narrators"`
-	Genres           []audimetaGenre   `json:"genres"`
-	Series           *audimetaSeries   `json:"series,omitempty"`
-	SeriesPrimary    *audimetaSeries   `json:"seriesPrimary,omitempty"`
-	SeriesSecondary  *audimetaSeries   `json:"seriesSecondary,omitempty"`
+	ASIN             string          `json:"asin"`
+	Title            string          `json:"title"`
+	Subtitle         string          `json:"subtitle"`
+	Description      string          `json:"description"`
+	Summary          string          `json:"summary"`
+	Image            string          `json:"image"`
+	Language         string          `json:"language"`
+	Publisher        string          `json:"publisher"`
+	ReleaseDate      string          `json:"releaseDate"`
+	RuntimeLengthMin int             `json:"runtimeLengthMin"`
+	Authors          []audimetaName  `json:"authors"`
+	Narrators        []audimetaName  `json:"narrators"`
+	Genres           []audimetaGenre `json:"genres"`
+	Series           *audimetaSeries `json:"series,omitempty"`
+	SeriesPrimary    *audimetaSeries `json:"seriesPrimary,omitempty"`
+	SeriesSecondary  *audimetaSeries `json:"seriesSecondary,omitempty"`
 }
 
 // audimetaSearchResult is the shape of items in the /search response.
@@ -162,7 +162,9 @@ type audimetaSearchResponse struct {
 	Data    []audimetaSearchResult `json:"data"`
 }
 
-type audimetaName struct{ Name string `json:"name"` }
+type audimetaName struct {
+	Name string `json:"name"`
+}
 type audimetaGenre struct {
 	Name string `json:"name"`
 	Type string `json:"type,omitempty"`
@@ -217,14 +219,14 @@ func (b audimetaBook) toCandidate(region string, raw []byte) metadata.Candidate 
 
 func (r audimetaSearchResult) toCandidate(region string) metadata.Candidate {
 	c := metadata.Candidate{
-		Source:     audimetaID,
-		ExternalID: r.ASIN,
-		Title:      r.Title,
-		ASIN:       r.ASIN,
-		CoverURL:   r.Image,
+		Source:      audimetaID,
+		ExternalID:  r.ASIN,
+		Title:       r.Title,
+		ASIN:        r.ASIN,
+		CoverURL:    r.Image,
 		PublishedAt: r.ReleaseDate,
-		RuntimeMin: r.RuntimeLengthMin,
-		Region:     region,
+		RuntimeMin:  r.RuntimeLengthMin,
+		Region:      region,
 	}
 	for _, a := range r.Authors {
 		c.Authors = append(c.Authors, a.Name)

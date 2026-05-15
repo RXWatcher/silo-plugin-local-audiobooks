@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/scanner"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/scanner"
 )
 
 // scanFakeStore is a minimal in-memory test double for the scanner's store

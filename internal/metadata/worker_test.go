@@ -59,9 +59,9 @@ func (r *fakeEnrichmentRegistry) ForID(id string) Source { return r.byID[id] }
 
 func newWorkerTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv("AUDIOBOOKSDB_TEST_DSN")
+	dsn := os.Getenv("LOCAL_AUDIOBOOKS_TEST_DSN")
 	if dsn == "" {
-		t.Skip("AUDIOBOOKSDB_TEST_DSN unset")
+		t.Skip("LOCAL_AUDIOBOOKS_TEST_DSN unset")
 	}
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {

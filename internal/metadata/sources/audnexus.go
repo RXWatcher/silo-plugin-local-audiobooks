@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata"
 )
 
 const audnexusID = "audnexus"
@@ -32,7 +32,7 @@ func NewAudnexusAt(baseURL, ua string) *Audnexus {
 	return &Audnexus{http: NewHTTPClient(baseURL, ua)}
 }
 
-func (a *Audnexus) ID() string                    { return audnexusID }
+func (a *Audnexus) ID() string                       { return audnexusID }
 func (a *Audnexus) Enabled(cfg map[string]bool) bool { return cfg[audnexusID] }
 
 // Search dispatches on the shape of `query`: ASIN regex → book lookup;
@@ -156,8 +156,12 @@ type audnexusBook struct {
 	} `json:"seriesPrimary,omitempty"`
 }
 
-type audnexusName struct{ Name string `json:"name"` }
-type audnexusGenre struct{ Name string `json:"name"` }
+type audnexusName struct {
+	Name string `json:"name"`
+}
+type audnexusGenre struct {
+	Name string `json:"name"`
+}
 
 type audnexusAuthor struct {
 	ASIN  string `json:"asin"`

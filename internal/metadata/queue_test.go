@@ -10,9 +10,9 @@ import (
 
 func newTestQueuePool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv("AUDIOBOOKSDB_TEST_DSN")
+	dsn := os.Getenv("LOCAL_AUDIOBOOKS_TEST_DSN")
 	if dsn == "" {
-		t.Skip("AUDIOBOOKSDB_TEST_DSN unset")
+		t.Skip("LOCAL_AUDIOBOOKS_TEST_DSN unset")
 	}
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {
@@ -20,7 +20,7 @@ func newTestQueuePool(t *testing.T) *pgxpool.Pool {
 	}
 	// Ensure a referenced library_path + audiobook exists so FK is satisfied.
 	pool.Exec(context.Background(), `TRUNCATE metadata_enrichment_job, audiobook, library_path RESTART IDENTITY CASCADE`) //nolint:errcheck
-	pool.Exec(context.Background(), `INSERT INTO library_path (path) VALUES ('/test')`)                                    //nolint:errcheck
+	pool.Exec(context.Background(), `INSERT INTO library_path (path) VALUES ('/test')`)                                   //nolint:errcheck
 	pool.Exec(context.Background(), `INSERT INTO audiobook (id, library_path_id, path, file_size, mtime)                   //nolint:errcheck
         VALUES ('test-id', 1, '/test/x.m4b', 0, now())`)
 	t.Cleanup(func() {

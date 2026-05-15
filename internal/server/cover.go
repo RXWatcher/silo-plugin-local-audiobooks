@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"image"
-	_ "image/png"
 	"image/jpeg"
+	_ "image/png"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"golang.org/x/image/draw"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/auth"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/auth"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/store"
 )
 
 // coverModTime is fixed because the cover bytes themselves never change

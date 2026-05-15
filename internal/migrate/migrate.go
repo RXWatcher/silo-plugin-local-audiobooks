@@ -12,7 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/migrate/files"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/migrate/files"
 )
 
 const bookkeepingDDL = `

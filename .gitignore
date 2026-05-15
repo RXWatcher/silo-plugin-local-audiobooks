@@ -1,6 +1,7 @@
 *.log
 *.orig
 *.bak
+/continuum-plugin-local-audiobooks
 /cover-thumbs/
 /scan-tmp/
 node_modules/

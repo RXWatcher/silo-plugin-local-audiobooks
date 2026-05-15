@@ -1,4 +1,4 @@
-// Command continuum-plugin-audiobooksdb is the plugin entrypoint.
+// Command continuum-plugin-local-audiobooks is the plugin entrypoint.
 package main
 
 import (
@@ -19,23 +19,23 @@ import (
 	publicmanifest "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/manifest"
 	sdkruntime "github.com/ContinuumApp/continuum-plugin-sdk/pkg/pluginsdk/runtime"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/grpc/metadataprovider"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/httproutes"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/metadata/sources"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/migrate"
-	pluginrt "github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/runtime"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/scanner"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/scheduler"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/server"
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/store"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/grpc/metadataprovider"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/httproutes"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/metadata/sources"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/migrate"
+	pluginrt "github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/runtime"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/scanner"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/scheduler"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/server"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/store"
 )
 
 //go:embed manifest.json
 var manifestRaw []byte
 
 func main() {
-	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-audiobooksdb"})
+	logger := hclog.New(&hclog.LoggerOptions{Name: "continuum-plugin-local-audiobooks"})
 
 	manifest, err := publicmanifest.Load(manifestRaw)
 	if err != nil {
@@ -153,7 +153,7 @@ func main() {
 		}
 
 		// Metadata wiring — build queue first so it can be passed to the HTTP server.
-		ua := "continuum-audiobooksdb/" + manifest.GetVersion()
+		ua := "continuum-local-audiobooks/" + manifest.GetVersion()
 		reg := sources.NewRegistry()
 		reg.Register(sources.NewAudnexus(ua))
 		reg.Register(sources.NewAudiMeta(ua))

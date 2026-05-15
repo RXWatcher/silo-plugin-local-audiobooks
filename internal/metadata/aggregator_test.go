@@ -39,9 +39,9 @@ func (r *fakeRegistry) All() []Source     { return r.srcs }
 
 func newAggregatorTestPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv("AUDIOBOOKSDB_TEST_DSN")
+	dsn := os.Getenv("LOCAL_AUDIOBOOKS_TEST_DSN")
 	if dsn == "" {
-		t.Skip("AUDIOBOOKSDB_TEST_DSN unset")
+		t.Skip("LOCAL_AUDIOBOOKS_TEST_DSN unset")
 	}
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {

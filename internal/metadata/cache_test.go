@@ -12,9 +12,9 @@ import (
 
 func newTestCachePool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
-	dsn := os.Getenv("AUDIOBOOKSDB_TEST_DSN")
+	dsn := os.Getenv("LOCAL_AUDIOBOOKS_TEST_DSN")
 	if dsn == "" {
-		t.Skip("AUDIOBOOKSDB_TEST_DSN unset; skipping integration cache test")
+		t.Skip("LOCAL_AUDIOBOOKS_TEST_DSN unset; skipping integration cache test")
 	}
 	pool, err := pgxpool.New(context.Background(), dsn)
 	if err != nil {

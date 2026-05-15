@@ -39,6 +39,6 @@ type Chapter struct {
 // Match wraps a Candidate with its confidence score.
 type Match struct {
 	Source     string
-	Confidence int       // 0-100
+	Confidence int // 0-100
 	Candidate  Candidate
 }

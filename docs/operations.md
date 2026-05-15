@@ -1,4 +1,4 @@
-# Operations — continuum-plugin-audiobooksdb
+# Operations — continuum-plugin-local-audiobooks
 
 ## 1. Postgres schema setup
 
@@ -7,15 +7,15 @@ within a shared Continuum database. Create the role and schema before
 installing the plugin:
 
 ```sql
-CREATE ROLE plugin_audiobooksdb LOGIN PASSWORD '<set-something-strong>';
-CREATE SCHEMA audiobooksdb AUTHORIZATION plugin_audiobooksdb;
+CREATE ROLE plugin_local_audiobooks LOGIN PASSWORD '<set-something-strong>';
+CREATE SCHEMA local_audiobooks AUTHORIZATION plugin_local_audiobooks;
 ```
 
-The plugin's DSN must set `search_path=audiobooksdb` so its migrations
+The plugin's DSN must set `search_path=local_audiobooks` so its migrations
 target that schema. Example DSN:
 
 ```
-postgres://plugin_audiobooksdb:<pwd>@db.internal:5432/continuum?search_path=audiobooksdb&sslmode=disable
+postgres://plugin_local_audiobooks:<pwd>@db.internal:5432/continuum?search_path=local_audiobooks&sslmode=disable
 ```
 
 The migrations are idempotent — running them again against an already-
@@ -123,5 +123,5 @@ the schema is recoverable via a rescan (durations / chapters re-extract
 from the files). Cover bytes that came from sidecar files are also
 recoverable; embedded covers re-extract from each file's tag.
 
-A periodic `pg_dump --schema=audiobooksdb` is sufficient if you want to
+A periodic `pg_dump --schema=local_audiobooks` is sufficient if you want to
 avoid the rescan cost after a DR event.

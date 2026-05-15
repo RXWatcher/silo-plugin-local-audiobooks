@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const expectedAudience = "audiobooksdb"
+const expectedAudience = "local_audiobooks"
 
 // StreamClaims is the verified subset of token claims callers need.
 type StreamClaims struct {
@@ -21,7 +21,7 @@ type StreamClaims struct {
 
 // VerifyStreamToken parses + verifies token. Returns nil error iff:
 //   - signature is valid HS256 against secret
-//   - aud == "audiobooksdb"
+//   - aud == "local_audiobooks"
 //   - exp not exceeded
 //   - book_id in token == expectedBookID
 //   - file_idx in token == expectedFileIdx

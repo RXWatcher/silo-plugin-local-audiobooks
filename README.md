@@ -1,4 +1,4 @@
-# continuum-plugin-audiobooksdb
+# continuum-plugin-local-audiobooks
 
 Local-filesystem audiobook backend for Continuum. Scans a directory tree of `.m4b` and `.mp3` files and exposes them to the audiobooks portal via the `audiobook_backend.v1` advertised capability. Pure-Go format parsing — no ffmpeg dependency at runtime.
 
@@ -20,9 +20,9 @@ From v0.2.0, the plugin also advertises the `metadata_provider.v1` capability an
 
 | Capability | Notes |
 |---|---|
-| `audiobook_backend.v1` (`audiobooksdb`) | Catalog, search, browse, cover art, byte-range streaming. |
+| `audiobook_backend.v1` (`local_audiobooks`) | Catalog, search, browse, cover art, byte-range streaming. |
 | `http_routes.v1` (`api`) | `/api/v1/*` for portal calls; `/admin/*` for the metadata backfill endpoint. |
-| `metadata_provider.v1` (`audiobooksdb_meta`) | Aggregator over Audnexus, AudiMeta, iTunes, Storytel, BookBeat, Audioteka, Audiobookcovers. |
+| `metadata_provider.v1` (`local_audiobooks_meta`) | Aggregator over Audnexus, AudiMeta, iTunes, Storytel, BookBeat, Audioteka, Audiobookcovers. |
 | `scheduled_task.v1` (`library_scan`) | Cron `0 */6 * * *`. |
 | `scheduled_task.v1` (`metadata_enrichment_worker`) | Cron `* * * * *`. Drains the enrichment queue. |
 
@@ -53,7 +53,7 @@ From v0.2.0, the plugin also advertises the `metadata_provider.v1` capability an
 
 | Key | Required | Description |
 |---|---|---|
-| `database_url` | yes | DSN for the dedicated `audiobooksdb` schema. |
+| `database_url` | yes | DSN for the dedicated `local_audiobooks` schema. |
 | `library_paths` | yes | JSON array of absolute filesystem paths to scan, e.g. `["/srv/audiobooks"]`. |
 | `standalone_http_listen` | no | Bind a TCP listener (e.g. `:7879`) for presigned-URL byte-range streaming. Requires `stream_signing_secret`. |
 | `stream_signing_secret` | conditional | 32-byte base64 HMAC. Must match the portal's `cdn_signing_secret`. Required when `standalone_http_listen` is set. |
@@ -66,15 +66,15 @@ From v0.2.0, the plugin also advertises the `metadata_provider.v1` capability an
 
 ## Dependencies
 
-- Postgres role + `audiobooksdb` schema.
+- Postgres role + `local_audiobooks` schema.
 - Mounted filesystem with `.m4b` / `.mp3` files.
 - Outbound HTTP access to enabled metadata sources.
 
 ## Install
 
 ```sql
-CREATE ROLE plugin_audiobooksdb LOGIN PASSWORD '<chosen>';
-CREATE SCHEMA audiobooksdb AUTHORIZATION plugin_audiobooksdb;
+CREATE ROLE plugin_local_audiobooks LOGIN PASSWORD '<chosen>';
+CREATE SCHEMA local_audiobooks AUTHORIZATION plugin_local_audiobooks;
 ```
 
 Configure `database_url` and `library_paths` in the plugin admin UI, then click "Scan now" in the audiobooks portal admin page. For full operator setup including the optional presigned-URL streaming hostname, see [`docs/operations.md`](docs/operations.md).

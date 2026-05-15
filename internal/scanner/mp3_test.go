@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ContinuumApp/continuum-plugin-audiobooksdb/internal/scanner"
+	"github.com/ContinuumApp/continuum-plugin-local-audiobooks/internal/scanner"
 )
 
 func fixtureMP3(t *testing.T, name string) string {

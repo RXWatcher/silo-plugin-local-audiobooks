@@ -10,9 +10,9 @@ import (
 
 func TestMigrate0002Applies(t *testing.T) {
 	ctx := context.Background()
-	dsn := os.Getenv("AUDIOBOOKSDB_TEST_DSN")
+	dsn := os.Getenv("LOCAL_AUDIOBOOKS_TEST_DSN")
 	if dsn == "" {
-		t.Skip("AUDIOBOOKSDB_TEST_DSN unset; skipping integration migration test")
+		t.Skip("LOCAL_AUDIOBOOKS_TEST_DSN unset; skipping integration migration test")
 	}
 	if err := Run(ctx, dsn); err != nil {
 		t.Fatalf("apply migrations: %v", err)
