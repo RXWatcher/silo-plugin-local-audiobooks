@@ -132,10 +132,11 @@ type FacetCount struct {
 
 // ListAudiobooksParams is the shape for cursor-paged listing.
 type ListAudiobooksParams struct {
-	Cursor string
-	Limit  int
-	Sort   string // "title" | "author" | "added" | "updated" — title default
-	Order  string // "asc" | "desc" — asc default
+	Cursor        string
+	Limit         int
+	Sort          string // "title" | "author" | "added" | "updated" — title default
+	Order         string // "asc" | "desc" — asc default
+	LibraryPathID int64
 }
 
 // ListActiveAudiobooks returns a cursor-paged window of non-deleted books.
@@ -158,16 +159,27 @@ func (s *Store) ListActiveAudiobooks(ctx context.Context, p ListAudiobooksParams
 		dir = "DESC"
 	}
 	args := []any{}
-	cursorClause := ""
+	whereClauses := []string{"deleted = FALSE"}
 	if p.Cursor != "" {
-		cursorClause = "AND id > $1"
 		args = append(args, p.Cursor)
+		whereClauses = append(whereClauses, fmt.Sprintf("id > $%d", len(args)))
+	}
+	if p.LibraryPathID > 0 {
+		args = append(args, p.LibraryPathID)
+		whereClauses = append(whereClauses, fmt.Sprintf("library_path_id = $%d", len(args)))
+	}
+	whereSQL := ""
+	for i, clause := range whereClauses {
+		if i > 0 {
+			whereSQL += " AND "
+		}
+		whereSQL += clause
 	}
 	args = append(args, p.Limit)
 	q := fmt.Sprintf(`SELECT %s FROM audiobook
-WHERE deleted = FALSE %s
+WHERE %s
 ORDER BY %s %s, id
-LIMIT $%d`, audiobookCols, cursorClause, col, dir, len(args))
+LIMIT $%d`, audiobookCols, whereSQL, col, dir, len(args))
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("store.ListActiveAudiobooks: %w", err)
@@ -193,16 +205,27 @@ func (s *Store) SearchAudiobooks(ctx context.Context, query string, p ListAudiob
 	}
 	pattern := "%" + query + "%"
 	args := []any{pattern}
-	cursorClause := ""
+	whereClauses := []string{"deleted = FALSE", "(title ILIKE $1 OR author ILIKE $1)"}
 	if p.Cursor != "" {
-		cursorClause = "AND id > $2"
 		args = append(args, p.Cursor)
+		whereClauses = append(whereClauses, fmt.Sprintf("id > $%d", len(args)))
+	}
+	if p.LibraryPathID > 0 {
+		args = append(args, p.LibraryPathID)
+		whereClauses = append(whereClauses, fmt.Sprintf("library_path_id = $%d", len(args)))
+	}
+	whereSQL := ""
+	for i, clause := range whereClauses {
+		if i > 0 {
+			whereSQL += " AND "
+		}
+		whereSQL += clause
 	}
 	args = append(args, p.Limit)
 	q := fmt.Sprintf(`SELECT %s FROM audiobook
-WHERE deleted = FALSE AND (title ILIKE $1 OR author ILIKE $1) %s
+WHERE %s
 ORDER BY title, id
-LIMIT $%d`, audiobookCols, cursorClause, len(args))
+LIMIT $%d`, audiobookCols, whereSQL, len(args))
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("store.SearchAudiobooks: %w", err)
@@ -221,22 +244,33 @@ LIMIT $%d`, audiobookCols, cursorClause, len(args))
 
 // ListAuthorsWithCounts returns distinct non-empty authors with their book
 // counts, cursor-paged. Cursor is the last-seen author name (alphabetical).
-func (s *Store) ListAuthorsWithCounts(ctx context.Context, cursor string, limit int) ([]FacetCount, error) {
+func (s *Store) ListAuthorsWithCounts(ctx context.Context, cursor string, limit int, libraryPathID int64) ([]FacetCount, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	args := []any{}
-	cursorClause := ""
+	whereClauses := []string{"deleted = FALSE", "author <> ''"}
 	if cursor != "" {
-		cursorClause = "AND author > $1"
 		args = append(args, cursor)
+		whereClauses = append(whereClauses, fmt.Sprintf("author > $%d", len(args)))
+	}
+	if libraryPathID > 0 {
+		args = append(args, libraryPathID)
+		whereClauses = append(whereClauses, fmt.Sprintf("library_path_id = $%d", len(args)))
+	}
+	whereSQL := ""
+	for i, clause := range whereClauses {
+		if i > 0 {
+			whereSQL += " AND "
+		}
+		whereSQL += clause
 	}
 	args = append(args, limit)
 	q := fmt.Sprintf(`SELECT author, COUNT(*) FROM audiobook
-WHERE deleted = FALSE AND author <> '' %s
+WHERE %s
 GROUP BY author
 ORDER BY author
-LIMIT $%d`, cursorClause, len(args))
+LIMIT $%d`, whereSQL, len(args))
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("store.ListAuthorsWithCounts: %w", err)
@@ -254,22 +288,33 @@ LIMIT $%d`, cursorClause, len(args))
 }
 
 // ListGenresWithCounts mirrors ListAuthorsWithCounts for the genre column.
-func (s *Store) ListGenresWithCounts(ctx context.Context, cursor string, limit int) ([]FacetCount, error) {
+func (s *Store) ListGenresWithCounts(ctx context.Context, cursor string, limit int, libraryPathID int64) ([]FacetCount, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 100
 	}
 	args := []any{}
-	cursorClause := ""
+	whereClauses := []string{"deleted = FALSE", "genre <> ''"}
 	if cursor != "" {
-		cursorClause = "AND genre > $1"
 		args = append(args, cursor)
+		whereClauses = append(whereClauses, fmt.Sprintf("genre > $%d", len(args)))
+	}
+	if libraryPathID > 0 {
+		args = append(args, libraryPathID)
+		whereClauses = append(whereClauses, fmt.Sprintf("library_path_id = $%d", len(args)))
+	}
+	whereSQL := ""
+	for i, clause := range whereClauses {
+		if i > 0 {
+			whereSQL += " AND "
+		}
+		whereSQL += clause
 	}
 	args = append(args, limit)
 	q := fmt.Sprintf(`SELECT genre, COUNT(*) FROM audiobook
-WHERE deleted = FALSE AND genre <> '' %s
+WHERE %s
 GROUP BY genre
 ORDER BY genre
-LIMIT $%d`, cursorClause, len(args))
+LIMIT $%d`, whereSQL, len(args))
 	rows, err := s.pool.Query(ctx, q, args...)
 	if err != nil {
 		return nil, fmt.Errorf("store.ListGenresWithCounts: %w", err)

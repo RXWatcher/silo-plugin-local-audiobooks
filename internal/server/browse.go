@@ -17,6 +17,7 @@ func (s *Server) handleBrowseAuthors(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.deps.Store.ListAuthorsWithCounts(r.Context(),
 		q.Get("cursor"),
 		parseLimit(q.Get("limit"), 100),
+		parseLibraryPathID(r),
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -37,6 +38,7 @@ func (s *Server) handleBrowseGenres(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.deps.Store.ListGenresWithCounts(r.Context(),
 		q.Get("cursor"),
 		parseLimit(q.Get("limit"), 100),
+		parseLibraryPathID(r),
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

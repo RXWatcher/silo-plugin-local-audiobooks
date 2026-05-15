@@ -55,6 +55,7 @@ func (s *Server) Handler() http.Handler {
 		return r
 	}
 	r.Get("/api/v1/catalog", s.handleListCatalog)
+	r.Get("/api/v1/catalog/libraries", s.handleListLibraries)
 	r.Get("/api/v1/catalog/search", s.handleSearchCatalog)
 	r.Get("/api/v1/catalog/{id}", s.handleGetCatalog)
 	r.Get("/api/v1/browse/authors", s.handleBrowseAuthors)
