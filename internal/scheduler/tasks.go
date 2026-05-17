@@ -32,8 +32,9 @@ type Tasks struct {
 	ScanFn  func(context.Context) (int64, error)
 	DrainFn func(context.Context) error
 
-	mu      sync.Mutex
-	running atomic.Bool
+	mu       sync.Mutex
+	running  atomic.Bool // guards library_scan
+	draining atomic.Bool // guards metadata_enrichment_worker
 }
 
 // Server implements ScheduledTaskServer.
@@ -62,6 +63,13 @@ func (s *Server) Run(ctx context.Context, req *pluginv1.RunScheduledTaskRequest)
 		if s.t == nil || s.t.DrainFn == nil {
 			return &pluginv1.RunScheduledTaskResponse{}, nil
 		}
+		if !s.t.draining.CompareAndSwap(false, true) {
+			// Previous drain still running (cron is every minute, a drain
+			// can take longer). Drop this trigger; the claim lease is the
+			// real correctness guard, this just avoids pile-up.
+			return &pluginv1.RunScheduledTaskResponse{}, nil
+		}
+		defer s.t.draining.Store(false)
 		err := s.t.DrainFn(ctx)
 		return &pluginv1.RunScheduledTaskResponse{}, err
 

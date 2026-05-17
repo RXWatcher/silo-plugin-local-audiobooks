@@ -102,3 +102,25 @@ func TestQueue_MarkCompleted(t *testing.T) {
 		t.Errorf("expected completed, got %q", status)
 	}
 }
+
+// ClaimNext must lease the job (push run_after past the lease) so a
+// concurrent/overlapping drain can't re-claim the same still-'pending' row
+// before the first worker finalises it. Without the lease this returned the
+// same job again → double-processing.
+func TestQueue_ClaimLeasesJobFromReclaim(t *testing.T) {
+	pool := newTestQueuePool(t)
+	q := NewQueue(pool)
+	ctx := context.Background()
+	if err := q.Enqueue(ctx, "test-id"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := q.ClaimNext(ctx); err != nil {
+		t.Fatalf("first claim: %v", err)
+	}
+	// Immediately re-claim (simulating an overlapping drain). The job is
+	// still 'pending' (not yet MarkCompleted/MarkFailed) but must NOT be
+	// handed out again because it's leased.
+	if _, err := q.ClaimNext(ctx); err != ErrQueueEmpty {
+		t.Fatalf("re-claim must be empty (job leased); got %v", err)
+	}
+}

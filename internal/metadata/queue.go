@@ -12,6 +12,15 @@ import (
 // MaxAttempts is the per-job retry cap before marking failed.
 const MaxAttempts = 5
 
+// claimLeaseMinutes is how long a claimed job is hidden from other claimers.
+// ClaimNext pushes run_after this far into the future so a concurrent drain
+// (the worker has no scheduler overlap guard and the cron is every minute)
+// cannot re-claim the same still-'pending' row, and a job whose worker
+// crashed before MarkCompleted/MarkFailed becomes claimable again after the
+// lease instead of being stuck 'pending' forever. It must comfortably exceed
+// the worst-case process() time (a handful of ~10s HTTP source calls).
+const claimLeaseMinutes = 15
+
 // Job is a row in metadata_enrichment_job, returned by ClaimNext.
 type Job struct {
 	AudiobookID string
@@ -60,7 +69,7 @@ func (q *Queue) ClaimNext(ctx context.Context) (Job, error) {
 	err = tx.QueryRow(ctx, `
 		SELECT audiobook_id, attempts FROM metadata_enrichment_job
 		WHERE status = 'pending' AND run_after <= now()
-		ORDER BY run_after
+		ORDER BY run_after, audiobook_id
 		FOR UPDATE SKIP LOCKED
 		LIMIT 1
 	`).Scan(&j.AudiobookID, &j.Attempts)
@@ -71,10 +80,18 @@ func (q *Queue) ClaimNext(ctx context.Context) (Job, error) {
 		return Job{}, err
 	}
 
+	// Lease the job: bump attempts AND push run_after past the lease so it
+	// leaves the claimable set until the worker finalizes it (MarkCompleted/
+	// MarkFailed overwrite run_after/status) or the lease lapses (crash
+	// recovery). This is what actually prevents concurrent drains from
+	// double-processing the same row — the SKIP LOCKED row lock is released
+	// at Commit below, long before process() finishes.
 	if _, err := tx.Exec(ctx, `
-		UPDATE metadata_enrichment_job SET attempts = attempts + 1
+		UPDATE metadata_enrichment_job
+		SET attempts = attempts + 1,
+		    run_after = now() + make_interval(mins => $2)
 		WHERE audiobook_id = $1
-	`, j.AudiobookID); err != nil {
+	`, j.AudiobookID, claimLeaseMinutes); err != nil {
 		return Job{}, err
 	}
 
