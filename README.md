@@ -9,6 +9,10 @@ The user-facing web app, playback UI, requests table, and ABS-compatible API
 come from `continuum.audiobooks`; this plugin owns local library scanning,
 metadata, cover data, and byte-range streaming.
 
+## Detailed Operations Docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+
 ## Features
 
 - Scans configured library paths for audiobook files.
