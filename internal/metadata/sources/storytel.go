@@ -54,8 +54,27 @@ func (s *Storytel) storytelHostFor(region string) string {
 	case "us", "":
 		return "https://www.storytel.com"
 	default:
+		// region is interpolated into the request host, so only accept a
+		// bare ccTLD-shaped token (2-3 lowercase letters). Anything else
+		// (e.g. "com.attacker.net", "com/..") would point the request at an
+		// arbitrary host — SSRF. Fall back to the global .com site.
+		if !isCCTLD(region) {
+			return "https://www.storytel.com"
+		}
 		return "https://www.storytel." + region
 	}
+}
+
+func isCCTLD(s string) bool {
+	if len(s) < 2 || len(s) > 3 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < 'a' || s[i] > 'z' {
+			return false
+		}
+	}
+	return true
 }
 
 // Get fetches a single book by Storytel native ID (slug or numeric ID).

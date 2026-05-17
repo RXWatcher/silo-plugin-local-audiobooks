@@ -36,10 +36,18 @@ func (s *Store) LoadAudiobookRow(ctx context.Context, id string) (metadata.Audio
 // audiobook that does not already have one, in a single SQL statement.
 // Returns the number of rows inserted.
 func (s *Store) BulkEnqueueBackfill(ctx context.Context) (int64, error) {
+	// Re-arm existing jobs (mirrors Queue.Enqueue's reset) instead of
+	// skipping them: an operator-invoked backfill must retry the failed /
+	// completed jobs — exactly the set DO NOTHING was silently excluding.
 	tag, err := s.pool.Exec(ctx, `
 		INSERT INTO metadata_enrichment_job (audiobook_id)
 		SELECT id FROM audiobook WHERE deleted = FALSE
-		ON CONFLICT DO NOTHING
+		ON CONFLICT (audiobook_id) DO UPDATE
+		  SET status = 'pending',
+		      attempts = 0,
+		      run_after = now(),
+		      last_error = '',
+		      finished_at = NULL
 	`)
 	if err != nil {
 		return 0, err

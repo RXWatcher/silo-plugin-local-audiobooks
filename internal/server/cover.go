@@ -63,7 +63,20 @@ func (s *Server) handleCoverStandalone(w http.ResponseWriter, r *http.Request) {
 
 // resizeCover decodes the input image, scales the longest edge to target
 // pixels (preserving aspect), and re-encodes as JPEG.
+// maxCoverPixels bounds the decoded image dimensions. Cover bytes come from
+// untrusted library audio files; a tiny crafted PNG/JPEG can declare enormous
+// dimensions and make image.Decode (and the RGBA scale buffer) allocate
+// gigabytes — a decompression-bomb DoS. 40 MP is far above any real cover.
+const maxCoverPixels = 40_000_000
+
 func resizeCover(in []byte, inMIME string, target int) ([]byte, string, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(in))
+	if err != nil {
+		return nil, "", err
+	}
+	if int64(cfg.Width)*int64(cfg.Height) > maxCoverPixels {
+		return nil, "", errors.New("cover image dimensions exceed limit")
+	}
 	src, _, err := image.Decode(bytes.NewReader(in))
 	if err != nil {
 		return nil, "", err

@@ -2,8 +2,11 @@ package store
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 type ScanEvent struct {
@@ -72,8 +75,13 @@ func (s *Store) HasInFlightScan(ctx context.Context, libraryPathID *int64) (int6
 	q += " ORDER BY started_at DESC LIMIT 1"
 	var id int64
 	err := s.pool.QueryRow(ctx, q, args...).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil // genuinely no in-flight scan
+	}
 	if err != nil {
-		return 0, nil
+		// Don't mask a real DB error as "no scan running" — the caller
+		// would then start a duplicate concurrent scan.
+		return 0, fmt.Errorf("has in-flight scan: %w", err)
 	}
 	return id, nil
 }
