@@ -28,11 +28,22 @@ type Audiobook struct {
 	ScannedAt     time.Time
 	CreatedAt     time.Time
 	UpdatedAt     time.Time
+	// ContentSig is the (size,mtime) change-detection signature. It is NOT
+	// the primary key — id is stable per (library_path_id, path) so content
+	// edits don't churn the PK / orphan covers + enrichment.
+	ContentSig string
+}
+
+// AudiobookRef is the minimal scan-time view of an existing row: its stable
+// id and last-ingest content signature, keyed by path.
+type AudiobookRef struct {
+	ID         string
+	ContentSig string
 }
 
 const audiobookCols = `id, library_path_id, path, file_size, mtime,
     title, author, narrator, album, year, genre, isbn, asin, description,
-    duration_ms, deleted, deleted_at, scanned_at, created_at, updated_at`
+    duration_ms, deleted, deleted_at, scanned_at, created_at, updated_at, content_sig`
 
 func scanAudiobook(row interface {
 	Scan(dest ...any) error
@@ -40,7 +51,7 @@ func scanAudiobook(row interface {
 	a := &Audiobook{}
 	err := row.Scan(&a.ID, &a.LibraryPathID, &a.Path, &a.FileSize, &a.MTime,
 		&a.Title, &a.Author, &a.Narrator, &a.Album, &a.Year, &a.Genre, &a.ISBN, &a.ASIN, &a.Description,
-		&a.DurationMs, &a.Deleted, &a.DeletedAt, &a.ScannedAt, &a.CreatedAt, &a.UpdatedAt)
+		&a.DurationMs, &a.Deleted, &a.DeletedAt, &a.ScannedAt, &a.CreatedAt, &a.UpdatedAt, &a.ContentSig)
 	if err != nil {
 		return nil, err
 	}
@@ -49,14 +60,16 @@ func scanAudiobook(row interface {
 
 // UpsertAudiobook inserts or replaces a row by id. Bumps updated_at.
 func (s *Store) UpsertAudiobook(ctx context.Context, a *Audiobook) error {
+	// Conflict on (library_path_id, path), NOT id: a re-ingest of the same
+	// file keeps the existing row's id, so content edits/mtime changes never
+	// churn the PK (which previously orphaned cover + metadata_enrichment_job
+	// FKs and reset enrichment).
 	const q = `
 INSERT INTO audiobook (id, library_path_id, path, file_size, mtime,
     title, author, narrator, album, year, genre, isbn, asin, description,
-    duration_ms, deleted, deleted_at, scanned_at)
-VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-ON CONFLICT (id) DO UPDATE SET
-    library_path_id = EXCLUDED.library_path_id,
-    path = EXCLUDED.path,
+    duration_ms, deleted, deleted_at, scanned_at, content_sig)
+VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
+ON CONFLICT (library_path_id, path) DO UPDATE SET
     file_size = EXCLUDED.file_size,
     mtime = EXCLUDED.mtime,
     title = EXCLUDED.title,
@@ -72,11 +85,12 @@ ON CONFLICT (id) DO UPDATE SET
     deleted = FALSE,
     deleted_at = NULL,
     scanned_at = EXCLUDED.scanned_at,
+    content_sig = EXCLUDED.content_sig,
     updated_at = now()`
 	_, err := s.pool.Exec(ctx, q,
 		a.ID, a.LibraryPathID, a.Path, a.FileSize, a.MTime,
 		a.Title, a.Author, a.Narrator, a.Album, a.Year, a.Genre, a.ISBN, a.ASIN, a.Description,
-		a.DurationMs, a.Deleted, a.DeletedAt, a.ScannedAt)
+		a.DurationMs, a.Deleted, a.DeletedAt, a.ScannedAt, a.ContentSig)
 	if err != nil {
 		return fmt.Errorf("store.UpsertAudiobook: %w", err)
 	}
@@ -96,20 +110,24 @@ func (s *Store) GetAudiobook(ctx context.Context, id string) (*Audiobook, error)
 
 // ListAudiobookPathsByLibrary returns (id, path) tuples for active books in a
 // library_path. Used by the scanner to detect deletions.
-func (s *Store) ListAudiobookPathsByLibrary(ctx context.Context, libraryPathID int64) (map[string]string, error) {
-	const q = `SELECT id, path FROM audiobook WHERE library_path_id = $1 AND deleted = FALSE`
+// ListAudiobookRefsByLibrary returns every non-deleted row in a library keyed
+// by path, with its stable id and last-ingest content signature. The scanner
+// uses this to (a) reuse the stable id for a known path and (b) skip files
+// whose content_sig is unchanged.
+func (s *Store) ListAudiobookRefsByLibrary(ctx context.Context, libraryPathID int64) (map[string]AudiobookRef, error) {
+	const q = `SELECT id, path, content_sig FROM audiobook WHERE library_path_id = $1 AND deleted = FALSE`
 	rows, err := s.pool.Query(ctx, q, libraryPathID)
 	if err != nil {
-		return nil, fmt.Errorf("store.ListAudiobookPathsByLibrary: %w", err)
+		return nil, fmt.Errorf("store.ListAudiobookRefsByLibrary: %w", err)
 	}
 	defer rows.Close()
-	out := map[string]string{}
+	out := map[string]AudiobookRef{}
 	for rows.Next() {
-		var id, path string
-		if err := rows.Scan(&id, &path); err != nil {
+		var id, path, sig string
+		if err := rows.Scan(&id, &path, &sig); err != nil {
 			return nil, err
 		}
-		out[id] = path
+		out[path] = AudiobookRef{ID: id, ContentSig: sig}
 	}
 	return out, rows.Err()
 }

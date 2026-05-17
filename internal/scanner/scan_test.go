@@ -19,11 +19,11 @@ type scanFakeStore struct {
 	deletes  map[string]bool
 }
 
-func (f *scanFakeStore) ListPaths(_ context.Context, libID int64) (map[string]string, error) {
-	out := map[string]string{}
+func (f *scanFakeStore) ListRefs(_ context.Context, libID int64) (map[string]scanner.PathRef, error) {
+	out := map[string]scanner.PathRef{}
 	for id, b := range f.books {
-		if b.LibraryPathID == libID {
-			out[id] = b.Path
+		if b.LibraryPathID == libID && !f.deletes[id] {
+			out[b.Path] = scanner.PathRef{ID: b.ID, ContentSig: b.ContentSig}
 		}
 	}
 	return out, nil
@@ -110,11 +110,15 @@ func TestScan_DetectsChangedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first walk: %v", err)
 	}
-	if r1.Added != 1 {
-		t.Fatalf("first walk added = %d, want 1", r1.Added)
+	if r1.Added != 1 || len(fake.books) != 1 {
+		t.Fatalf("first walk added = %d, books = %d, want 1/1", r1.Added, len(fake.books))
+	}
+	var origID string
+	for id := range fake.books {
+		origID = id
 	}
 
-	// Touch the file to bump mtime.
+	// Touch the file to bump mtime (a backup restore / fs copy does this).
 	future := time.Now().Add(1 * time.Hour)
 	if err := os.Chtimes(target, future, future); err != nil {
 		t.Fatalf("chtimes: %v", err)
@@ -124,8 +128,19 @@ func TestScan_DetectsChangedFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second walk: %v", err)
 	}
-	if r2.Changed != 1 || r2.Added != 0 || r2.Deleted != 1 {
-		t.Errorf("counts after change = (a=%d c=%d d=%d), want (0,1,1)", r2.Added, r2.Changed, r2.Deleted)
+	// An mtime-only change re-ingests the SAME row: the stable id must not
+	// churn (no soft-delete + re-insert), so cover/enrichment FKs survive.
+	if r2.Changed != 1 || r2.Added != 0 || r2.Deleted != 0 {
+		t.Errorf("counts after mtime change = (a=%d c=%d d=%d), want (0,1,0)", r2.Added, r2.Changed, r2.Deleted)
+	}
+	if len(fake.books) != 1 {
+		t.Errorf("books after change = %d, want 1 (no PK churn)", len(fake.books))
+	}
+	if _, ok := fake.books[origID]; !ok {
+		t.Errorf("stable id %q churned after mtime change; books=%v", origID, fake.books)
+	}
+	if fake.deletes[origID] {
+		t.Errorf("stable id %q was soft-deleted after a mere mtime change", origID)
 	}
 }
 

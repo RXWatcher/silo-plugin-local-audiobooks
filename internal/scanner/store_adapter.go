@@ -13,8 +13,16 @@ type StoreAdapter struct {
 	S *store.Store
 }
 
-func (a *StoreAdapter) ListPaths(ctx context.Context, libraryPathID int64) (map[string]string, error) {
-	return a.S.ListAudiobookPathsByLibrary(ctx, libraryPathID)
+func (a *StoreAdapter) ListRefs(ctx context.Context, libraryPathID int64) (map[string]PathRef, error) {
+	refs, err := a.S.ListAudiobookRefsByLibrary(ctx, libraryPathID)
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string]PathRef, len(refs))
+	for path, r := range refs {
+		out[path] = PathRef{ID: r.ID, ContentSig: r.ContentSig}
+	}
+	return out, nil
 }
 
 func (a *StoreAdapter) Upsert(ctx context.Context, b Audiobook) error {
@@ -35,6 +43,7 @@ func (a *StoreAdapter) Upsert(ctx context.Context, b Audiobook) error {
 		Description:   b.Description,
 		DurationMs:    b.DurationMs,
 		ScannedAt:     b.ScannedAt,
+		ContentSig:    b.ContentSig,
 	})
 }
 

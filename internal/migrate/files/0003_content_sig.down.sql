@@ -1,0 +1,3 @@
+-- no-op: dropping content_sig on rollback is not worth the data churn
+-- (the next scan would re-mint ids again). The runner never applies .down
+-- files automatically; this exists only for parity/manual use.
