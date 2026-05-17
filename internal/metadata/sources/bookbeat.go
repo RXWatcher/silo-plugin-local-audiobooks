@@ -201,15 +201,20 @@ func extractFromBookBeatNextData(html string) []metadata.Candidate {
 		return nil
 	}
 	var results []metadata.Candidate
-	traverseBookBeatNextData(data, &results)
+	traverseBookBeatNextData(data, &results, 0)
 	return results
 }
 
-func traverseBookBeatNextData(v interface{}, out *[]metadata.Candidate) {
+// depth bounds recursion over attacker-influenced scraped JSON (JSON-bomb /
+// stack-exhaustion guard).
+func traverseBookBeatNextData(v interface{}, out *[]metadata.Candidate, depth int) {
+	if depth > maxTraverseDepth {
+		return
+	}
 	switch val := v.(type) {
 	case []interface{}:
 		for _, item := range val {
-			traverseBookBeatNextData(item, out)
+			traverseBookBeatNextData(item, out, depth+1)
 		}
 	case map[string]interface{}:
 		if isBookBeatBook(val) {
@@ -219,7 +224,7 @@ func traverseBookBeatNextData(v interface{}, out *[]metadata.Candidate) {
 			return // don't recurse into books we already consumed
 		}
 		for _, child := range val {
-			traverseBookBeatNextData(child, out)
+			traverseBookBeatNextData(child, out, depth+1)
 		}
 	}
 }

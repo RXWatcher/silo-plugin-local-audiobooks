@@ -205,15 +205,20 @@ func extractFromAudiotekaInitialState(html string) []metadata.Candidate {
 		return nil
 	}
 	var results []metadata.Candidate
-	traverseAudiotekaData(data, &results)
+	traverseAudiotekaData(data, &results, 0)
 	return results
 }
 
-func traverseAudiotekaData(v interface{}, out *[]metadata.Candidate) {
+// depth bounds recursion over attacker-influenced scraped JSON (JSON-bomb /
+// stack-exhaustion guard).
+func traverseAudiotekaData(v interface{}, out *[]metadata.Candidate, depth int) {
+	if depth > maxTraverseDepth {
+		return
+	}
 	switch val := v.(type) {
 	case []interface{}:
 		for _, item := range val {
-			traverseAudiotekaData(item, out)
+			traverseAudiotekaData(item, out, depth+1)
 		}
 	case map[string]interface{}:
 		if isAudiotekaBook(val) {
@@ -223,7 +228,7 @@ func traverseAudiotekaData(v interface{}, out *[]metadata.Candidate) {
 			return // don't recurse into books we already consumed
 		}
 		for _, child := range val {
-			traverseAudiotekaData(child, out)
+			traverseAudiotekaData(child, out, depth+1)
 		}
 	}
 }

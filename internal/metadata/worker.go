@@ -63,6 +63,13 @@ func (w *EnrichmentWorker) Drain(ctx context.Context) error {
 			return err
 		}
 		if procErr := w.process(ctx, job); procErr != nil {
+			// A context cancellation (plugin shutdown / scheduler tick
+			// timeout) is not a job failure: don't burn a retry attempt or
+			// record a bogus "context canceled" last_error. Stop the drain;
+			// the claim lease lets the job be re-tried on a later tick.
+			if ctx.Err() != nil || errors.Is(procErr, context.Canceled) || errors.Is(procErr, context.DeadlineExceeded) {
+				return ctx.Err()
+			}
 			_ = w.Queue.MarkFailed(ctx, job.AudiobookID, job.Attempts, procErr.Error())
 			w.Logger.Warn("enrichment failed", "audiobook_id", job.AudiobookID,
 				"attempts", job.Attempts, "err", procErr)

@@ -373,17 +373,22 @@ func extractFromNextData(html string) []metadata.Candidate {
 		return nil
 	}
 	var results []metadata.Candidate
-	traverseNextData(data, &results)
+	traverseNextData(data, &results, 0)
 	return results
 }
 
 // traverseNextData walks the arbitrary __NEXT_DATA__ structure and collects
-// objects that look like StorytelBook records.
-func traverseNextData(v interface{}, out *[]metadata.Candidate) {
+// objects that look like StorytelBook records. depth bounds recursion: the
+// payload is attacker-influenced scraped HTML, so a deeply nested JSON tree
+// must not exhaust the goroutine stack.
+func traverseNextData(v interface{}, out *[]metadata.Candidate, depth int) {
+	if depth > maxTraverseDepth {
+		return
+	}
 	switch val := v.(type) {
 	case []interface{}:
 		for _, item := range val {
-			traverseNextData(item, out)
+			traverseNextData(item, out, depth+1)
 		}
 	case map[string]interface{}:
 		if isStorytelBook(val) {
@@ -393,7 +398,7 @@ func traverseNextData(v interface{}, out *[]metadata.Candidate) {
 			return // don't recurse into books we already consumed
 		}
 		for _, child := range val {
-			traverseNextData(child, out)
+			traverseNextData(child, out, depth+1)
 		}
 	}
 }

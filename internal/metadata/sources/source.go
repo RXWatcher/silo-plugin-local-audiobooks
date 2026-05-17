@@ -20,6 +20,11 @@ const SoftLimit = 1 << 20 // 1 MB
 // DefaultTimeout is the per-HTTP-request timeout.
 const DefaultTimeout = 10 * time.Second
 
+// maxTraverseDepth bounds recursion when walking scraped __NEXT_DATA__ /
+// JSON-LD trees (attacker-influenced). Real book records nest only a handful
+// of levels; 64 is generous and far below any goroutine-stack risk.
+const maxTraverseDepth = 64
+
 // Source is the uniform interface every per-upstream adapter implements.
 type Source interface {
 	ID() string                                                                      // stable lower-case slug

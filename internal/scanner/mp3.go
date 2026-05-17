@@ -71,8 +71,10 @@ func ParseMP3(path string) (*ParsedM4B, error) {
 		// emit oddly-cased frame IDs.
 		out.DurationMs = parseTLEN(raw)
 
-		// Cover: APIC frame via Picture().
-		if pic := m.Picture(); pic != nil && len(pic.Data) > 0 {
+		// Cover: APIC frame via Picture(). Skip absurdly large embedded art
+		// (crafted/corrupt file) — it would be stored verbatim in a bytea
+		// column and re-read into memory on every cover request.
+		if pic := m.Picture(); pic != nil && len(pic.Data) > 0 && len(pic.Data) <= maxStoredCoverBytes {
 			out.CoverBytes = pic.Data
 			out.CoverMIME = pic.MIMEType
 			out.CoverSource = "embedded"

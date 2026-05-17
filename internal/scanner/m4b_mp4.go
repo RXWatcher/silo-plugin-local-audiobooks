@@ -7,6 +7,15 @@ import (
 	mp4 "github.com/abema/go-mp4"
 )
 
+// maxDurationSeconds caps a plausible audiobook length (~277h). Anything
+// larger from an mvhd box is treated as a corrupt/crafted value.
+const maxDurationSeconds = 1_000_000
+
+// maxStoredCoverBytes caps embedded cover art persisted from a (possibly
+// crafted) audio file. 8 MiB is far above any real cover; larger blobs are
+// dropped so they don't bloat the cover bytea column / cover responses.
+const maxStoredCoverBytes = 8 << 20
+
 // mp4ReaderFromFile gives abema/go-mp4 the ReadSeeker it expects.
 func mp4ReaderFromFile(f *os.File) (io.ReadSeeker, error) { return f, nil }
 
@@ -20,7 +29,15 @@ func parseMP4(r io.ReadSeeker) mp4Result {
 			ts := uint64(mvhd.Timescale)
 			d := mvhd.GetDuration()
 			if ts > 0 {
-				out.durationMs = int64(d * 1000 / ts)
+				// Divide first (no overflow), then scale. A crafted mvhd
+				// with a huge duration / tiny timescale would overflow
+				// d*1000 and cast to a negative/garbage int64; clamp
+				// implausible values to "unknown" (0) instead.
+				secs := d / ts
+				if secs > maxDurationSeconds {
+					secs = 0
+				}
+				out.durationMs = int64(secs) * 1000
 			}
 		}
 	}
@@ -32,6 +49,9 @@ func parseMP4(r io.ReadSeeker) mp4Result {
 	})
 	for _, b := range covers {
 		if d, ok := b.Payload.(*mp4.Data); ok {
+			if len(d.Data) > maxStoredCoverBytes {
+				continue // skip oversized/crafted embedded art
+			}
 			out.cover = d.Data
 			switch d.DataType {
 			case mp4.DataTypeStringJPEG:
