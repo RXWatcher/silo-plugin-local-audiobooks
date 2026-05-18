@@ -3,6 +3,8 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -83,5 +85,48 @@ func TestAdminHomeIncludesOperationalSectionsAndMountGuidance(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Fatalf("admin home missing %q", want)
 		}
+	}
+}
+
+func TestAdminFilesystemBrowseListsDirectories(t *testing.T) {
+	root := t.TempDir()
+	if err := os.Mkdir(filepath.Join(root, "Books"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "not-a-directory.txt"), []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	h := New(Deps{}).Handler()
+	req := httptest.NewRequest(http.MethodGet, "/admin/filesystem/browse?path="+root, nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `"path":"`+root+`"`) {
+		t.Fatalf("body missing current path: %s", body)
+	}
+	if !strings.Contains(body, `"name":"Books"`) {
+		t.Fatalf("body missing child directory: %s", body)
+	}
+	if strings.Contains(body, "not-a-directory.txt") {
+		t.Fatalf("body included non-directory entry: %s", body)
+	}
+}
+
+func TestAdminFilesystemBrowseRejectsRelativePath(t *testing.T) {
+	h := New(Deps{}).Handler()
+	req := httptest.NewRequest(http.MethodGet, "/admin/filesystem/browse?path=relative", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), `"code":"bad_request"`) {
+		t.Fatalf("body missing bad_request code: %s", rec.Body.String())
 	}
 }

@@ -5,7 +5,10 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"path/filepath"
+	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -102,4 +105,68 @@ func writeAdminError(w http.ResponseWriter, status int, code, message string) {
 			"message": message,
 		},
 	})
+}
+
+type filesystemBrowseEntry struct {
+	Name string `json:"name"`
+	Path string `json:"path"`
+}
+
+type filesystemBrowseResponse struct {
+	Path    string                  `json:"path"`
+	Parent  string                  `json:"parent"`
+	Entries []filesystemBrowseEntry `json:"entries"`
+}
+
+func handleAdminFilesystemBrowse(w http.ResponseWriter, r *http.Request) {
+	path := strings.TrimSpace(r.URL.Query().Get("path"))
+	if path == "" {
+		path = string(filepath.Separator)
+	}
+	if !filepath.IsAbs(path) {
+		writeAdminError(w, http.StatusBadRequest, "bad_request", "path must be an absolute path")
+		return
+	}
+
+	cleaned := filepath.Clean(path)
+	info, err := os.Stat(cleaned)
+	if err != nil {
+		if os.IsNotExist(err) {
+			writeAdminError(w, http.StatusNotFound, "not_found", "directory not found")
+		} else {
+			writeAdminError(w, http.StatusBadRequest, "bad_request", "invalid path")
+		}
+		return
+	}
+	if !info.IsDir() {
+		writeAdminError(w, http.StatusBadRequest, "bad_request", "path must point to a directory")
+		return
+	}
+
+	entries, err := os.ReadDir(cleaned)
+	if err != nil {
+		writeAdminError(w, http.StatusInternalServerError, "internal_error", "failed to read directory")
+		return
+	}
+
+	result := make([]filesystemBrowseEntry, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		result = append(result, filesystemBrowseEntry{Name: name, Path: filepath.Join(cleaned, name)})
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if result[i].Name == result[j].Name {
+			return result[i].Path < result[j].Path
+		}
+		return result[i].Name < result[j].Name
+	})
+
+	parent := filepath.Dir(cleaned)
+	if cleaned == string(filepath.Separator) || parent == "." || parent == cleaned {
+		parent = cleaned
+	}
+	writeJSON(w, http.StatusOK, filesystemBrowseResponse{Path: cleaned, Parent: parent, Entries: result})
 }
