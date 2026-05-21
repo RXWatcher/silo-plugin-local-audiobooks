@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "checksum": "e98f52a29a3a752c1565432f321c746aed29cdfcd8c65ebfc3efa0a3af3ebc9f",
   "continuum_api_version": "v1",
+  "category": "Books/Audiobooks",
   "supported_platforms": [
     {
       "os": "linux",
@@ -14,7 +15,15 @@
       "type": "audiobook_backend.v1",
       "id": "local_audiobooks",
       "display_name": "Local Audiobooks Library",
-      "description": "Scans local audiobook libraries and exposes them to the Audiobooks portal."
+      "description": "Scans local audiobook libraries and exposes them to the Audiobooks portal.",
+      "metadata": {
+        "audiobook_roles": [
+          "library_source"
+        ],
+        "supports_catalog": true,
+        "supports_requests": false,
+        "supports_auto_monitoring": false
+      }
     },
     {
       "type": "http_routes.v1",
@@ -46,6 +55,18 @@
     }
   ],
   "http_routes": [
+    {
+      "id": "stream",
+      "method": "GET",
+      "path": "/api/v1/stream/*",
+      "access": "public"
+    },
+    {
+      "id": "cover",
+      "method": "GET",
+      "path": "/api/v1/cover/*",
+      "access": "public"
+    },
     {
       "id": "api",
       "method": "*",

@@ -23,7 +23,7 @@ func TestVerifyStreamToken_HappyPath(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
 		"sub":      "u-1",
-		"aud":      "local_audiobooks",
+		"aud":      "audiobook_backend",
 		"book_id":  "abc123",
 		"file_idx": float64(0),
 		"exp":      time.Now().Add(5 * time.Minute).Unix(),
@@ -40,7 +40,7 @@ func TestVerifyStreamToken_HappyPath(t *testing.T) {
 func TestVerifyStreamToken_RejectsExpired(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(-1 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {
@@ -62,7 +62,7 @@ func TestVerifyStreamToken_RejectsWrongAudience(t *testing.T) {
 func TestVerifyStreamToken_RejectsBookIDMismatch(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "different", 0); err == nil {
@@ -73,7 +73,7 @@ func TestVerifyStreamToken_RejectsBookIDMismatch(t *testing.T) {
 func TestVerifyStreamToken_RejectsBadSignature(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, []byte("different-secret-32-bytes-aaaaaaa"), jwt.MapClaims{
-		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
+		"sub": "u-1", "aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {
@@ -84,7 +84,7 @@ func TestVerifyStreamToken_RejectsBadSignature(t *testing.T) {
 func TestVerifyStreamToken_RejectsMissingSubject(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
-		"aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0),
+		"aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(0),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {
@@ -95,7 +95,7 @@ func TestVerifyStreamToken_RejectsMissingSubject(t *testing.T) {
 func TestVerifyStreamToken_RejectsFractionalFileIndex(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(0.5),
+		"sub": "u-1", "aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(0.5),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", 0); err == nil {
@@ -106,7 +106,7 @@ func TestVerifyStreamToken_RejectsFractionalFileIndex(t *testing.T) {
 func TestVerifyStreamToken_RejectsNegativeExpectedIndex(t *testing.T) {
 	secret := []byte("0123456789abcdef0123456789abcdef")
 	tok := mint(t, secret, jwt.MapClaims{
-		"sub": "u-1", "aud": "local_audiobooks", "book_id": "abc", "file_idx": float64(-1),
+		"sub": "u-1", "aud": "audiobook_backend", "book_id": "abc", "file_idx": float64(-1),
 		"exp": time.Now().Add(5 * time.Minute).Unix(),
 	})
 	if _, err := auth.VerifyStreamToken(secret, tok, "abc", -1); err == nil {

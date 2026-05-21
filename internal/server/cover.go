@@ -22,8 +22,15 @@ import (
 var coverModTime = time.Unix(0, 0).UTC()
 
 func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := chi.URLParam(r, "book_id")
 	size := chi.URLParam(r, "size") // "thumb" | "medium" | "original"
+	// Cover route is declared public on the host plugin proxy. Auth is
+	// enforced here via the signed media token in ?token=. file_idx=-1 is
+	// the sentinel for cover tokens (covers don't address a specific file).
+	if err := requireStreamToken(r, s.deps.StreamSecret, id, -1); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return
+	}
 	cov, err := s.deps.Store.GetCover(r.Context(), id)
 	if errors.Is(err, store.ErrNotFound) {
 		http.Error(w, "no cover", http.StatusNotFound)
@@ -54,10 +61,12 @@ func (s *Server) handleCover(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleCoverStandalone(w http.ResponseWriter, r *http.Request) {
-	if err := requireStreamToken(r, s.deps.StreamSecret, chi.URLParam(r, "id"), 0); err != nil {
+	if err := requireStreamToken(r, s.deps.StreamSecret, chi.URLParam(r, "book_id"), -1); err != nil {
 		http.Error(w, err.Error(), http.StatusUnauthorized)
 		return
 	}
+	// handleCover re-validates; harmless and keeps the gate explicit at the
+	// auth boundary even if the standalone+main paths diverge later.
 	s.handleCover(w, r)
 }
 

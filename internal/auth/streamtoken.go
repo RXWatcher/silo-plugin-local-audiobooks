@@ -10,7 +10,11 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const expectedAudience = "local_audiobooks"
+// expectedAudience is the canonical audience claim shared by every backend
+// implementing the audiobook_backend.v1 byte routes. Matches the value
+// bw-audio uses (internal/tokens) and the value the portal mints with
+// (internal/mediatoken).
+const expectedAudience = "audiobook_backend"
 
 // StreamClaims is the verified subset of token claims callers need.
 type StreamClaims struct {
