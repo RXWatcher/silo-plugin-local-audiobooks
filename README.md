@@ -1,43 +1,48 @@
 # Local Audiobooks for Continuum
 
-`continuum.local-audiobooks` scans local audiobook folders and exposes them to
-the Continuum Audiobooks portal as an `audiobook_backend.v1` source. It is the
-right backend when your audiobook files live on disk next to the Continuum
-deployment.
+`continuum.local-audiobooks` is the local-filesystem audiobook backend for the [Continuum](https://github.com/ContinuumApp/continuum) plugin ecosystem. It walks configured library directories for `.m4b` and `.mp3` files, persists their metadata and embedded/sidecar covers into a dedicated Postgres schema, and serves the resulting catalog, browse trees, covers, and byte-range streams to the [`continuum.audiobooks`](https://github.com/RXWatcher/continuum-plugin-audiobooks) portal. It also bundles a metadata aggregator that searches seven upstream sources to fill in titles, authors, narrators, descriptions, and artwork.
 
-The user-facing web app, playback UI, requests table, and ABS-compatible API
-come from `continuum.audiobooks`; this plugin owns local library scanning,
-metadata, cover data, and byte-range streaming.
+## Category
 
-## Detailed Operations Docs
+Lives under **Books / Audiobooks** in the admin sidebar.
 
-- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+## Capabilities
 
-## Features
+| Type | ID | Purpose |
+| --- | --- | --- |
+| `audiobook_backend.v1` | `local_audiobooks` | Exposes the on-disk library as a `library_source` to the audiobooks portal. Supports catalog; does not support requests or auto-monitoring. |
+| `http_routes.v1` | `api` | Public stream + cover endpoints, authenticated catalog/browse, and admin endpoints for mounts, scan triggers, and metadata diagnostics. |
+| `scheduled_task.v1` | `library_scan` | Walks configured library directories every 6 hours and upserts discovered audiobooks. |
+| `metadata_provider.v1` | `local_audiobooks_meta` | Aggregator that fans out to seven upstream sources; default audiobook priority `1`. |
+| `scheduled_task.v1` | `metadata_enrichment_worker` | Per-minute worker that drains the enrichment queue, filling missing metadata via the bundled aggregator. |
 
-- Scans configured library paths for audiobook files.
-- Exposes catalog, search, detail, cover, and streaming behavior to the
-  Audiobooks portal.
-- Supports standalone signed streaming for reverse-proxied direct clients.
-- Aggregates metadata from Audnexus, AudiMeta, iTunes, Storytel, BookBeat,
-  Audioteka, and Audiobookcovers.
-- Caches metadata source results and supports scheduled enrichment.
-- Supports inline enrichment after scans when enabled.
+## Dependencies
+
+- Host: [`github.com/ContinuumApp/continuum`](https://github.com/ContinuumApp/continuum).
+- SDK: [`github.com/ContinuumApp/continuum-plugin-sdk`](https://github.com/ContinuumApp/continuum-plugin-sdk).
+- Consumed by [`continuum-plugin-audiobooks`](https://github.com/RXWatcher/continuum-plugin-audiobooks) (the portal), which presents the local library alongside other backends such as [`continuum-plugin-bookwarehouse-audio`](https://github.com/RXWatcher/continuum-plugin-bookwarehouse-audio) and request providers like [`continuum-plugin-audiobook-requests`](https://github.com/RXWatcher/continuum-plugin-audiobook-requests).
+
+## External services
+
+- A local filesystem mount containing `.m4b` and `.mp3` files. Audiobooks are identified per `(library_path, relative path)`; covers are read either from the container (`m4b` `covr` atom, `mp3` `APIC` frame) or from `cover.{jpg,png}` sidecar files next to the audio.
+- Postgres, with a dedicated `local_audiobooks` schema (the plugin runs its own migrations on startup).
+- Outbound HTTPS to the seven metadata upstreams listed below. No API keys required.
+- Optional standalone HTTP listener (separate from the host-proxy routes) for HMAC-signed, presigned byte-range streaming through a reverse proxy.
 
 ## Configuration
 
 | Key | Required | Description |
-|---|---|---|
-| `database_url` | yes | Postgres DSN for the `local_audiobooks` schema. |
-| `library_paths` | yes | JSON array of absolute folders to scan, for example `["/srv/audiobooks"]`. |
-| `standalone_http_listen` | no | Optional listener for presigned byte-range streaming. |
-| `stream_signing_secret` | conditional | 32-byte base64 HMAC secret shared with the Audiobooks portal when standalone streaming is enabled. |
-| `metadata_sources_enabled` | no | JSON array of metadata source IDs to query. Defaults to all. |
-| `metadata_default_region` | no | Default ISO country code. Defaults to `us`. |
-| `metadata_cache_ttl_days` | no | Positive metadata cache TTL. Defaults to 30 days. |
-| `metadata_rate_limit_rps` | no | Per-source request rate limit. |
-| `scan_inline_enrich` | no | Run enrichment synchronously after each scan. |
-| `metadata_scan_source` | no | Source used by the enrichment worker during scans. |
+| --- | --- | --- |
+| `database_url` | yes | DSN for the dedicated `local_audiobooks` schema (Postgres). |
+| `library_paths` | yes | JSON array of absolute directories to scan, for example `["/srv/audiobooks"]`. |
+| `standalone_http_listen` | no | Optional `host:port` for the presigned-stream listener. |
+| `stream_signing_secret` | conditional | 32-byte base64 HMAC secret shared with the audiobooks portal; required when `standalone_http_listen` is set. |
+| `metadata_sources_enabled` | no | JSON array of metadata source IDs to query. Defaults to all seven. |
+| `metadata_default_region` | no | ISO country code passed to region-aware sources. Defaults to `us`. |
+| `metadata_cache_ttl_days` | no | TTL for cached upstream responses. Defaults to `30`. |
+| `metadata_rate_limit_rps` | no | Per-source request rate limit. Defaults to `5`. |
+| `scan_inline_enrich` | no | Drain enrichment jobs synchronously at the end of each scan. |
+| `metadata_scan_source` | no | Scan-capable source used by the enrichment worker. Defaults to `audnexus`. Must be one of `audnexus`, `audimeta`, `itunes`, `storytel`, `bookbeat`, `audioteka`. |
 
 Example DSN:
 
@@ -45,25 +50,30 @@ Example DSN:
 postgres://plugin_local_audiobooks:password@postgres:5432/continuum?search_path=local_audiobooks&sslmode=disable
 ```
 
-## Database Setup
+## Metadata providers
 
-```sql
-CREATE ROLE plugin_local_audiobooks WITH LOGIN PASSWORD '<chosen>';
-CREATE SCHEMA local_audiobooks AUTHORIZATION plugin_local_audiobooks;
-GRANT CONNECT ON DATABASE continuum TO plugin_local_audiobooks;
-```
+The aggregator registers and orchestrates seven upstream sources:
 
-## Portal Integration
+- **Audnexus** (`api.audnex.us`) — ASIN-keyed Audible metadata; the default scan source.
+- **AudiMeta** (`api.audimeta.de`) — community-maintained audiobook database.
+- **iTunes** (`itunes.apple.com`) — Apple's lookup API, keyed on numeric `trackId`/`collectionId`.
+- **Storytel** — regional Storytel catalog, ID slugs like `project-hail-mary-12345`.
+- **BookBeat** — region-specific BookBeat domains.
+- **Audioteka** — Audioteka catalog across `pl`, `cz`, and other regions.
+- **Audiobookcovers** (`api.audiobookcovers.com`) — cover-only source; candidates surface as "improve cover" matches rather than primary results.
 
-1. Mount audiobook files into the plugin runtime.
-2. Configure `library_paths`.
-3. Install and configure `continuum.audiobooks`.
-4. Add a presentation library in the Audiobooks admin UI backed by
-   `continuum.local-audiobooks`.
+Results are cached in Postgres for `metadata_cache_ttl_days`, rate-limited per source, and ranked by the aggregator's confidence formula.
 
-## Build And Test
+## Detailed docs
+
+- [Setup, debugging, and communication flows](docs/setup-debug-flows.md)
+- [Operations runbook](docs/operations.md)
+
+## Build and release
 
 ```bash
 make build
 make test
 ```
+
+CI builds linux-amd64 binaries on push to main via the reusable workflow in [RXWatcher/continuum-plugin-repository](https://github.com/RXWatcher/continuum-plugin-repository) and publishes them to the catalog at [`./binaries/`](https://github.com/RXWatcher/continuum-plugin-repository/tree/main/binaries).
